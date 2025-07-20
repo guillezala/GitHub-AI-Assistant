@@ -1,0 +1,7 @@
+PyGithub
+tiktoken
+transformers
+streamlit
+sentence_transformers
+pinecone
+google-api-core
