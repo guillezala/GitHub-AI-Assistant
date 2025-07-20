@@ -1,0 +1,57 @@
+# Python
+__pycache__/
+agents/__pycache__/
+utils/__pycache__/
+**/pycache*/
+*.py[cod]
+*.pyo
+*.pyd
+*.env
+*.venv
+env/
+venv/
+ENV/
+env.bak/
+venv.bak/
+*.sqlite3
+*.db
+
+# VSCode
+.vscode/
+.history/
+
+# Streamlit
+.streamlit/
+
+# Jupyter
+.ipynb_checkpoints/
+*.ipynb
+
+# Logs
+*.log
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Test/coverage
+htmlcov/
+.coverage
+.tox/
+.nox/
+.cache/
+.pytest_cache/
+*.cover
+
+# Virtual environments
+*.egg-info/
+dist/
+build/
+.eggs/
+
+# Others
+*.bak
+*.swp
+*.swo
+*.tmp
+*.orig

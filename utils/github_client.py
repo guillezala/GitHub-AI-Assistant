@@ -9,7 +9,7 @@ class GitHubClient:
     def fetch_readme(self, owner: str, repo: str) -> str:
         try:
             repository = self.client.get_repo(f"{owner}/{repo}")
-            content = repository.get_readme()
+            content = repository.get_readme()   
             return base64.b64decode(content.content).decode("utf-8")
         except GithubException as e:
             print(f"[ERROR] GitHub API error: {e}")

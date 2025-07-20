@@ -64,7 +64,7 @@ class PineconeVectorStore:
             )
         self.index = pc.Index(index_name)
 
-    def upsert_embeddings(self, items: List[Dict]):
+    def upsert_embeddings(self, items: List[Dict], document: str, repo: str) -> None:
         """
         items = [
             {
@@ -78,14 +78,21 @@ class PineconeVectorStore:
         vectors = []
         for i, item in enumerate(items):
             vec_id = f"chunk-{uuid.uuid4().hex[:8]}"
-            metadata = item.get("metadata", {})
-            metadata["text"] = item["text"]
+            if isinstance(item, dict):
+                text = item.get("text", "")
+                embedding = item.get("embedding", [])
 
-            vectors.append({
-                "id": vec_id,
-                "values": item["embedding"],
-                "metadata": metadata
-            })
+                vectors.append({
+                    "id": vec_id,
+                    "values": embedding,
+                    "metadata": {"text": text, "chunk_index": i, "document":document, "repo": repo}
+                })
+            else:
+                vectors.append({
+                    "id": vec_id,
+                    "values": item,
+                    "metadata": {"text": "", "chunk_index": i, "document":document, "repo": repo}
+                })
 
         self.index.upsert(vectors=vectors)
         print(f"[Pinecone] Insertados {len(vectors)} vectores.")
