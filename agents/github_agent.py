@@ -3,6 +3,10 @@ from langchain.prompts import PromptTemplate
 from github import Github
 from langchain.tools import BaseTool
 from pydantic import Field
+from langchain.output_parsers import StructuredOutputParser
+from langchain.schema import OutputParserException
+from langchain import PromptTemplate
+from langchain.agents import initialize_agent
 import os
 class GitHubTool(Tool):
     """
@@ -67,15 +71,18 @@ class GitHubAgent(BaseTool):
                 "Tienes acceso a la herramienta github_tool. \n"
                 "Pregunta: {input}"
             )
-        )
-        # Inicializa el agente LangChain
-        from langchain.agents import initialize_agent
+        ).partial(format_instructions=self.format_instructions)
+
+    def run(self, query: str) -> str:
+        # Inicializa el agente con parser y manejo de errores
         agent_executor = initialize_agent(
-            [self.github_tool],
-            self.llm,
+            tools=[self.github_tool],
+            llm=self.llm,
             agent="zero-shot-react-description",
+            prompt=self.prompt,
+            output_parser=self.output_parser,
+            handle_parsing_errors=True,
             verbose=False,
-            prompt=prompt,
         )
         # Ejecuta la consulta
         return agent_executor.run(query)

@@ -7,6 +7,7 @@ from agents.rag import RAGAgent
 from langchain_community.llms import Ollama
 from agents.orchestrator import OrchestratorAgent
 from agents.github_agent import GitHubAgent, GitHubTool
+from utils.query_analysis import QueryAnalyzer
 
 def streamlit_logger(msg):
     st.info(msg)
@@ -64,8 +65,8 @@ if st.button("Enviar consulta"):
             github_agent = GitHubAgent(github_tool=GitHubTool(), llm=llm)  # Ajusta github_tool según tu implementación
 
             orchestrator = OrchestratorAgent(agents=[
-                                                    ("RAGAgent", rag_agent),
-                                                    ("GitHubAgent", github_agent),
+                                                    ("RAGAgent", rag_agent)
+                                                    #("GitHubAgent", github_agent),
                                                 ], 
                                                 llm=llm,
                                                 logger=streamlit_logger)
