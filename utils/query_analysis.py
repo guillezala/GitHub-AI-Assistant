@@ -68,27 +68,28 @@ class QueryAnalyzer:
         repository = self._extract_repository(query)
         
         # Prompt mejorado y más específico
-        prompt = f"""Eres un clasificador experto. Analiza esta pregunta y determina si está relacionada con:
-1. Código abierto/open source (proyectos, librerías, frameworks públicos)
-2. GitHub (plataforma, repositorios, acciones de GitHub)
-3. Programación (desarrollo de software, código, lenguajes)
+        prompt = f"""Eres un clasificador con sesgo POSITIVO hacia la temática de programación.
+Asume por defecto que la pregunta sí está relacionada con programación/tecnología.
+Solo marca todo en false cuando sea CLARAMENTE ajena (cocina, deportes, viajes, etc.).
 
-INSTRUCCIONES IMPORTANTES:
-- Responde ÚNICAMENTE con un JSON válido
-- No agregues texto adicional antes o después
-- Si la pregunta no es clara, usa confianza baja (< 0.5)
-- Si es claramente sobre otros temas (cocina, deportes, etc.), marca todo como false
+Categorías:
+1. Código abierto / open source (proyectos, librerías o frameworks públicos, licencias, contribuciones públicas)
+2. GitHub (plataforma, repositorios, Issues/PRs, Actions, Gists, Releases)
+3. Programación (desarrollo de software, lenguajes, código, APIs, debugging, compilación, arquitectura, herramientas de dev)
+
+REGLAS:
+- Responde ÚNICAMENTE con un JSON válido y cerrado. Nada fuera del JSON.
 
 Pregunta: "{query}"
 
 Formato de respuesta esperado:
 {{
   "es_codigo_abierto": boolean,
-  "es_github": boolean, 
+  "es_github": boolean,
   "es_programacion": boolean,
   "repositorio": "usuario/repo" o null,
   "confianza": número entre 0 y 1,
-  "razonamiento": "breve explicación"
+  "razonamiento": "explicación breve"
 }}"""
 
         try:
@@ -131,11 +132,19 @@ Formato de respuesta esperado:
         # Quitar bloques de código markdown
         response = re.sub(r'```json\s*', '', response)
         response = re.sub(r'```\s*', '', response)
+
+        # Eliminar líneas que no empiezan con { o terminan con }
+        lines = response.splitlines()
+        json_lines = [line for line in lines if '{' in line or '}' in line or ':' in line]
+        response = "\n".join(json_lines)
         
         # Buscar el JSON en la respuesta
         json_match = re.search(r'\{.*\}', response, re.DOTALL)
         if json_match:
             return json_match.group(0)
+        
+        if response.count('{') > response.count('}'):
+            response += '}'
         
         return response
 
@@ -182,10 +191,8 @@ Formato de respuesta esperado:
         
         return llm_analysis
 
-    def is_relevant_query(self, query: str, min_confidence: float = 0.4) -> bool:
+    def is_relevant_query(self, analysis, min_confidence: float = 0.4) -> bool:
         """Determina si la consulta es relevante para el sistema"""
-        analysis = self.analyze_query(query)
-        
         is_relevant = (
             analysis["es_codigo_abierto"] or 
             analysis["es_github"] or 
