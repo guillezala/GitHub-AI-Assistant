@@ -1,66 +1,84 @@
+from typing import List, Tuple, Callable, Any, ClassVar
+from pydantic import BaseModel, Field
 from langchain.tools import BaseTool
-from pydantic import Field, BaseModel
-from typing import List, Tuple, Callable
-from logging import Logger
-import logging
-import json
-import asyncio
+from langchain_community.chat_models import ChatOllama
+import asyncio, json, re
+
+class OrchestratorInput(BaseModel):
+    query: str = Field(...)
 
 class OrchestratorAgent(BaseTool):
     name: str = "OrchestratorAgent"
-    description: str = "Orquesta múltiples agentes (RAG, GitHub, etc.) y decide cuál usar según la consulta y la calidad de la respuesta."
+    description: str = "Decide qué agente usar (RAG, GitHub) y valida la calidad."
+    args_schema: ClassVar[type[BaseModel]] = OrchestratorInput
+
     agents: List[Tuple[str, BaseTool]] = Field(...)
-    llm: object = Field(...)
-    logger: object = Field(...)
+    llm: Any = Field(...)
+    logger: Callable[[str], None] = Field(default=print)
+    timeout_s: float = Field(default=90.0)
+
+    @staticmethod
+    def _strip_json(txt: str) -> dict:
+        txt = re.sub(r"^```json|^```|```$", "", txt.strip(), flags=re.MULTILINE)
+        try: return json.loads(txt)
+        except: return {}
 
     def evaluate(self, answer: str, query: str) -> bool:
-        """
-        Devuelve True si el LLM considera la respuesta satisfactoria.
-        """
         prompt = (
-            f"La pregunta: '''{query}'''.\n"
-            f"La respuesta: '''{answer}'''.\n"
-            "¿Es satisfactoria? Devuélveme un JSON: {\"ok\": true} o {\"ok\": false}."
-        )
-        resp = self.llm.generate([prompt]).generations[0][0].text.strip()
-        ok = resp.startswith("{\"ok\": true}")
-        return ok
-    
-    
+                "Tu tarea es evaluar si la respuesta resuelve la consulta del usuario.\n"
+                "Responde ÚNICAMENTE con uno de estos JSON, sin ningún texto adicional:\n"
+                '{"ok": true}\n'
+                'o\n'
+                '{"ok": false}\n'
+                "No expliques nada más.\n\n"
+                f"PREGUNTA:\n{query}\n\nRESPUESTA:\n{answer}\n\n"
+                "¿La respuesta resuelve la consulta? Devuelve solo el JSON."
+            )
+        try:
+            out = self.llm.invoke(prompt)
+            data = self._strip_json(getattr(out, "content", str(out)))
+            return bool(data.get("ok", False))
+        except Exception:
+            return False
+
+    async def _call_agent(self, agent: BaseTool, query: str) -> str:
+        try:
+            has_async_impl = callable(getattr(agent, "_arun", None))
+            if has_async_impl:
+                coro = agent.arun(query)      # usa _arun si existe
+            else:
+                coro = asyncio.to_thread(agent.run, query)  # ejecuta _run en hilo
+
+            task = asyncio.create_task(coro)
+            return await asyncio.wait_for(asyncio.shield(task), timeout=self.timeout_s)
+
+        except asyncio.TimeoutError:
+            print(f"[{getattr(agent,'name','agent')}] timeout tras {self.timeout_s:.1f}s")
+            raise Exception(f"Timeout tras {self.timeout_s:.1f}s")
+        except Exception as e:
+            self.logger(f"[{getattr(agent,'name','agent')}] error: {e}")
+            print(e)
+            raise e
+
     async def _arun(self, query: str) -> str:
         for name, agent in self.agents:
-            self.logger(f"[Orquestador] Ejecutando {name} (async)…")
+            self.logger(f"[Orquestador] Ejecutando {name}…")
             try:
-                resp = await agent.arun(query)
+                resp = await self._call_agent(agent, query)
             except Exception as e:
-                self.logger(f"[{name}] error: {e}")
+                print(f"Exception {e}")
                 continue
-
-            # <-- aquí quitas el await
             if self.evaluate(resp, query):
                 self.logger(f"[Orquestador] {name} aceptado.")
                 return resp
-            else:
-                self.logger(f"[Orquestador] {name} rechazado.")
-
+            self.logger(f"[Orquestador] {name} rechazado.")
         self.logger("[Orquestador] Ningún agente válido.")
         return "Lo siento, no he podido encontrar una respuesta adecuada."
 
-    """def _run(self, query: str) -> str:
-        for name, agent in self.agents:
-            self.logger(f"[Orquestador] Ejecutando {name}...")
-            try:
-                resp = agent.run(query)
-            except Exception as e:
-                self.logger(f"[{name}] error: {e}")
-                continue
-            if self.evaluate(resp, query):
-                self.logger(f"[Orquestador] {name} aceptado.")
-                return resp
-            else:
-                self.logger(f"[Orquestador] {name} rechazado.")
-        self.logger("[Orquestador] Ningún agente válido.")
-        return "Lo siento, no he podido encontrar una respuesta adecuada." """
-    
     def _run(self, query: str) -> str:
-        return asyncio.run(self._arun(query))
+        try:
+            loop = asyncio.get_running_loop()
+        except RuntimeError:
+            return asyncio.run(self._arun(query))
+        else:
+            return loop.run_until_complete(self._arun(query))

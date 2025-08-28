@@ -1,12 +1,24 @@
 from langchain.tools import BaseTool
 from pydantic import Field
 
+from utils.chunking import Chunker
+from utils.embeddings import Embedder
+from utils.embeddings import PineconeVectorStore
+
+from langchain_community.chat_models import ChatOllama
+
 class RAGAgent(BaseTool):
     name: str = "RAGAgent"
     description: str = "Busca información relevante en Pinecone y genera una respuesta basada en la consulta y los chunks encontrados"
-    embedder: object = Field(...)
-    vector_store: object = Field(...)
-    llm: object = Field(...)
+    embedder: object = Field(default=None)
+    vector_store: object = Field(default=None)
+    llm: object = Field(default=None)
+
+    def init_agent(self):
+        self.vector_store = PineconeVectorStore(index_name="repo-text-embed-index")
+        self.embedder = Embedder()
+        self.llm = ChatOllama(model="llama3.2:1b", temperature=0)
+
 
     def _run(self, query: str) -> str:
         # 1. Obtener embedding de la consulta

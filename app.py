@@ -1,12 +1,18 @@
 import streamlit as st
+import atexit
+
 from utils.github_client import GitHubClient
 from utils.chunking import Chunker
 from utils.embeddings import Embedder
 from utils.embeddings import PineconeVectorStore
+
 from agents.rag import RAGAgent
+from langchain_community.chat_models import ChatOllama
 from langchain_community.llms import Ollama
 from agents.orchestrator import OrchestratorAgent
 from agents.github_agent import GitHubMCPAgent
+from agents.github_exec_tool import GitHubExecTool
+
 from utils.query_analysis import QueryAnalyzer
 import asyncio
 from utils.runner_async import AsyncRunner
@@ -17,7 +23,7 @@ def streamlit_logger(msg):
 def init_query_analyzer():
     """Inicializa el analizador de consultas"""
     if 'query_analyzer' not in st.session_state:
-        llm = Ollama(model="llama3.2:1b", temperature=0)
+        llm = Ollama(model="llama3.2:3b", temperature=0)
         st.session_state.query_analyzer = QueryAnalyzer(llm=llm, logger=streamlit_logger)
     return st.session_state.query_analyzer
 
@@ -50,26 +56,60 @@ def handle_irrelevant_query(analysis):
     
     return False
 
-def bootstrap():
-    runner = AsyncRunner()
-    agent = GitHubMCPAgent()
-    # Conexión inicial (opcional pero recomendado)
+st.set_page_config(page_title="GitHub README Processor", page_icon="🐙", layout="wide")
+
+def streamlit_logger(msg: str):
+    st.info(msg)
+
+# 1) Un único runner vivo
+if "runner" not in st.session_state:
+    st.session_state.runner = AsyncRunner()
+
+# 2) GitHub MCP -> conectar + build executor (dentro del runner)
+if "github_tool" not in st.session_state:
+    gh = GitHubMCPAgent()
     try:
-        tools = runner.run(agent.connect())
+        # Conexión MCP (stdio) en el loop del runner
+        st.session_state.runner.run(gh.connect())
     except Exception as e:
-        tools = []
         st.warning(f"No se pudo conectar al servidor MCP todavía: {e}")
-    return runner, agent
+    # Whitelist compacta de tools MCP
+    allowed = {
+        "search_code","list_pull_requests",
+    }
+    executor = st.session_state.runner.run(
+        gh.build_executor(allowed_tools=allowed, model="llama3.2:3b", temperature=0.0, max_iterations=8)
+    )
+    st.session_state.gh_client = gh
+    st.session_state.github_tool = GitHubExecTool(executor=executor)
 
-runner, github_agent = bootstrap()
+# 3) RAG (BaseTool síncrono)
+"""if "rag_tool" not in st.session_state:
+    rag_tool = RAGAgent()
+    rag_tool.init_agent()  
+    st.session_state.rag_tool = rag_tool"""
 
-# Configuración de la página
-st.set_page_config(
-    page_title="GitHub README Processor",
-    page_icon="🐙",
-    layout="wide"
-)
+# 4) Orquestador (usa judge_llm chat; no llames .run en Streamlit)
+if "orchestrator" not in st.session_state:
+    judge_llm = ChatOllama(model="llama3.2:3b", temperature=0.0)
+    orchestrator = OrchestratorAgent(
+        agents=[("GitHub", st.session_state.github_tool)],
+        llm=judge_llm,
+        logger=streamlit_logger,
+        timeout_s=300.0
+    )
+    st.session_state.orchestrator = orchestrator
 
+# Cierre limpio al salir
+def _cleanup():
+    try:
+        if "gh_client" in st.session_state:
+            st.session_state.runner.run(st.session_state.gh_client.close())
+    finally:
+        if "runner" in st.session_state:
+            st.session_state.runner.stop()
+
+atexit.register(_cleanup)
 st.title("🐙 Procesador de README de GitHub")
 
 # Sidebar para configuración
@@ -179,20 +219,8 @@ if send_query_button:
             
             with st.spinner("🤖 Buscando respuesta con el agente Orchestrator..."):
                 try:
-                    # Inicializar componentes
-                    embedder = Embedder()
-                    vector_store = PineconeVectorStore(index_name="repo-text-embed-index")
-                    llm = Ollama(model="llama3.2:1b", temperature=0)
-                    rag_agent = RAGAgent(embedder=embedder, vector_store=vector_store, llm=llm)
-
-                    orchestrator = OrchestratorAgent(
-                        agents=[("RAGAgent", rag_agent)],
-                        llm=llm,
-                        logger=streamlit_logger
-                    )
-                    
                     # Ejecutar consulta
-                    respuesta = orchestrator.run(user_query)
+                    respuesta = st.session_state.runner.run(st.session_state.orchestrator._arun(user_query))
                     
                     # Mostrar respuesta
                     st.markdown("### 🎯 Respuesta:")
