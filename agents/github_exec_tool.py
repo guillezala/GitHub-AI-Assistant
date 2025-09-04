@@ -1,6 +1,7 @@
 from langchain.tools import BaseTool
 from langchain.agents import AgentExecutor
 
+
 class GitHubExecTool(BaseTool):
     name: str = "GitHubAgent"
     description: str = "Usa el agente GitHub (MCP) para responder consultas de repos."

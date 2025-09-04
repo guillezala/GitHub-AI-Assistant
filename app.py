@@ -9,6 +9,9 @@ from utils.embeddings import PineconeVectorStore
 from agents.rag import RAGAgent
 from langchain_community.chat_models import ChatOllama
 from langchain_community.llms import Ollama
+from langchain_community.callbacks.streamlit import (
+    StreamlitCallbackHandler,
+)
 from agents.orchestrator import OrchestratorAgent
 from agents.github_agent import GitHubMCPAgent
 from agents.github_exec_tool import GitHubExecTool
@@ -51,7 +54,6 @@ def show_query_suggestions():
 
 def handle_irrelevant_query(analysis):
     """Maneja consultas que no parecen relevantes"""
-    # Mostrar detalles del análisis
     st.write(analysis["razonamiento"])
     
     return False
@@ -60,6 +62,8 @@ st.set_page_config(page_title="GitHub README Processor", page_icon="🐙", layou
 
 def streamlit_logger(msg: str):
     st.info(msg)
+
+st_callback = StreamlitCallbackHandler(st.container())
 
 # 1) Un único runner vivo
 if "runner" not in st.session_state:
@@ -74,11 +78,11 @@ if "github_tool" not in st.session_state:
     except Exception as e:
         st.warning(f"No se pudo conectar al servidor MCP todavía: {e}")
     # Whitelist compacta de tools MCP
-    allowed = {
-        "search_code","list_pull_requests",
+    allowed_tools = {
+        "list_pull_requests",
     }
     executor = st.session_state.runner.run(
-        gh.build_executor(allowed_tools=allowed, model="llama3.2:3b", temperature=0.0, max_iterations=8)
+        gh.build_executor(allowed_tools=allowed_tools, model="llama3.2:3b", temperature=0.0, max_iterations=3)
     )
     st.session_state.gh_client = gh
     st.session_state.github_tool = GitHubExecTool(executor=executor)
@@ -126,13 +130,10 @@ with st.sidebar:
         help="Nivel mínimo de confianza para procesar automáticamente la consulta"
     )
     
-    # Modo debug
-    debug_mode = st.checkbox("🔍 Mostrar análisis detallado")
-    
     st.markdown("---")
 
 # === SECCIÓN 1: PROCESAMIENTO DE README ===
-st.header("📋 Paso 1: Procesar README")
+st.header("📋 Procesar README")
 
 col1, col2 = st.columns(2)
 with col1:
@@ -207,11 +208,12 @@ if send_query_button:
         st.warning("⚠️ Por favor, escribe una pregunta.")
     else:
         # Inicializar analizador
-        analyzer = init_query_analyzer()
-        
-        analysis = analyzer.analyze_query(user_query)
-        
-        is_relevant = analyzer.is_relevant_query(analysis, min_confidence)
+        with st.spinner("🔎 Analizando consulta..."):
+            analyzer = init_query_analyzer()
+            
+            analysis = analyzer.analyze_query(user_query)
+            
+            is_relevant = analyzer.is_relevant_query(analysis, min_confidence)
         
         if is_relevant:
             # 4. Procesar consulta relevante

@@ -109,7 +109,7 @@ class GitHubMCPAgent:
     async def build_executor(
         self,
         allowed_tools: Optional[Iterable[str]] = None,
-        model: str = "llama3.1",
+        model: str = "llama3.2:3b",
         temperature: float = 0.0,
         max_iterations: int = 8,
         prompt_template: Optional[str] = None,
@@ -120,6 +120,7 @@ class GitHubMCPAgent:
 
         # 1) Descubre tools del servidor MCP
         listed = await self.session.list_tools()
+        print(listed)
         available = {t.name: t for t in listed.tools}
 
         # 2) Filtra por whitelist (si se pasa). Si None, usa todas (no recomendado en prod)
@@ -167,37 +168,30 @@ class GitHubMCPAgent:
         llm = ChatOllama(model=model, temperature=temperature)
 
         # 5) Prompt ReAct sobrio
-        REACT_PROMPT = """You are an expert agent that uses tools to answer questions.
+        REACT_PROMPT = """Answer the following questions as best you can. You have access to the following tools:
+                {tools}
 
-        You have access to the following tools:
-        {tools}
+                Use the following format:
 
-        On each turn, produce EXACTLY ONE of the following:
+                Question: the input question you must answer
+                Thought: you should always think about what to do
+                Action: the action to take, should be one of [{tool_names}]
+                Action Input: the input to the action
+                Observation: the result of the action
+                ... (this Thought/Action/Action Input/Observation can repeat N times)
+                Thought: I now know the final answer
+                Final Answer: the final answer to the original input question
 
-        (1) A single tool call:
-        Thought: <brief reasoning>
-        Action: <one of [{tool_names}]>
-        Action Input: <valid JSON, no backticks>
-        # IMPORTANT: After printing Action Input, END YOUR MESSAGE IMMEDIATELY.
-        # Do NOT add anything after (no more lines, no extra words).
+                IMPORTANT:
+                - End with "Final Answer:" once you can fully answer the question.
+                - Do not call the same tool more than 2 times in a row if it doesn’t help.
+                - The tool will return JSON outputs. To create the Observation, summarized it using the relevant information in relation with the input.
 
-        (2) The final answer:
-        Thought: I now know the final answer
-        Final Answer: <your answer>
+                Begin!
 
-        Rules:
-        - Never include both a tool call and a Final Answer in the same turn.
-        - Do not wrap JSON in backticks.
-        - Use the exact labels: Thought / Action / Action Input / Observation / Final Answer.
-        - If the Observation contains a list, summarize it and only mention the most relevant items.
-        - If you already have the information requested, respond with Final Answer and stop.
-        - Do NOT repeat the same tool call if the observation already contains the answer.
-
-        Begin!
-
-        Question: {input}
-        {agent_scratchpad}
-        """
+                Question: {input}
+                {agent_scratchpad}
+                """
 
         prompt = PromptTemplate.from_template(REACT_PROMPT)
 
@@ -210,8 +204,11 @@ class GitHubMCPAgent:
             agent=agent,
             tools=tools,
             verbose=True,
-            handle_parsing_errors="Fix the format. After Action Input, stop immediately. One step only.",
+            handle_parsing_errors = "Fix the format. Stick to the given prompt. Make sure there is a Thought, Action and Action Input.",
             max_iterations=max_iterations,
+            return_intermediate_steps=True,
+            early_stopping_method="generate" 
+
         )
         return executor
 
@@ -234,13 +231,19 @@ class MCPTool(BaseTool):
         args = tool_input
         if isinstance(args, str):
             stripped = args.strip()
-            if stripped.startswith("{") or stripped.startswith("["):
-                try:
-                    args = json.loads(stripped)
-                except json.JSONDecodeError:
-                    args = {"query": args}
-            else:
-                args = {"query": args}
+            if not (stripped.startswith("{") or stripped.startswith("[")):
+                raise ValueError(
+                    "Action Input must be valid JSON matching the tool schema. "
+                    "Provide an object with the required keys."
+                )
+            try:
+                args = json.loads(stripped)
+            except json.JSONDecodeError as e:
+                raise ValueError(f"Invalid JSON for Action Input: {e}")
+
+        elif not isinstance(args, dict):
+            raise ValueError("Action Input must be a JSON object (dict).")
+
         return asyncio.run(self._arun(args, run_manager))
 
     async def _arun(self, tool_input, run_manager=None) -> str:
