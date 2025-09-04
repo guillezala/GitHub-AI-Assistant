@@ -9,9 +9,7 @@ from utils.embeddings import PineconeVectorStore
 from agents.rag import RAGAgent
 from langchain_community.chat_models import ChatOllama
 from langchain_community.llms import Ollama
-from langchain_community.callbacks.streamlit import (
-    StreamlitCallbackHandler,
-)
+
 from agents.orchestrator import OrchestratorAgent
 from agents.github_agent import GitHubMCPAgent
 from agents.github_exec_tool import GitHubExecTool
@@ -63,7 +61,7 @@ st.set_page_config(page_title="GitHub README Processor", page_icon="🐙", layou
 def streamlit_logger(msg: str):
     st.info(msg)
 
-st_callback = StreamlitCallbackHandler(st.container())
+
 
 # 1) Un único runner vivo
 if "runner" not in st.session_state:
