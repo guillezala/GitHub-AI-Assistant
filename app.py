@@ -10,7 +10,7 @@ from agents.rag import RAGAgent
 from langchain_community.chat_models import ChatOllama
 from langchain_community.llms import Ollama
 
-from agents.orchestrator import OrchestratorAgent
+from agents.orchestrator import Orchestrator
 from agents.github_agent import GitHubMCPAgent
 from agents.github_exec_tool import GitHubExecTool
 
@@ -21,10 +21,24 @@ from utils.runner_async import AsyncRunner
 def streamlit_logger(msg):
     st.info(msg)
 
+def get_chat_llm():
+    if "chat_llm" not in st.session_state:
+        st.session_state.chat_llm = ChatOllama(
+            model="qwen2.5:7b-instruct-q4_0",
+            temperature=0.0,
+            # manda opciones a Ollama para reducir huella
+            model_kwargs={
+                "num_ctx": 2048,      # menos memoria
+                "num_thread": 4,      # CPU estable
+                "keep_alive": "30s"   # descarga del VRAM/RAM si está inactivo
+            }
+        )
+    return st.session_state.chat_llm
+
 def init_query_analyzer():
     """Inicializa el analizador de consultas"""
     if 'query_analyzer' not in st.session_state:
-        llm = Ollama(model="llama3.2:3b", temperature=0)
+        llm = get_chat_llm()
         st.session_state.query_analyzer = QueryAnalyzer(llm=llm, logger=streamlit_logger)
     return st.session_state.query_analyzer
 
@@ -80,7 +94,7 @@ if "github_tool" not in st.session_state:
         "list_pull_requests",
     }
     executor = st.session_state.runner.run(
-        gh.build_executor(allowed_tools=allowed_tools, model="llama3.2:3b", temperature=0.0, max_iterations=3)
+        gh.build_executor(allowed_tools=allowed_tools, model="qwen2.5:7b-instruct", temperature=0.0, max_iterations=3)
     )
     st.session_state.gh_client = gh
     st.session_state.github_tool = GitHubExecTool(executor=executor)
@@ -93,9 +107,9 @@ if "github_tool" not in st.session_state:
 
 # 4) Orquestador (usa judge_llm chat; no llames .run en Streamlit)
 if "orchestrator" not in st.session_state:
-    judge_llm = ChatOllama(model="llama3.2:3b", temperature=0.0)
-    orchestrator = OrchestratorAgent(
-        agents=[("GitHub", st.session_state.github_tool)],
+    judge_llm = get_chat_llm()
+    orchestrator = Orchestrator(
+        tools=[st.session_state.github_tool],
         llm=judge_llm,
         logger=streamlit_logger,
         timeout_s=300.0
@@ -220,7 +234,7 @@ if send_query_button:
             with st.spinner("🤖 Buscando respuesta con el agente Orchestrator..."):
                 try:
                     # Ejecutar consulta
-                    respuesta = st.session_state.runner.run(st.session_state.orchestrator._arun(user_query))
+                    respuesta = st.session_state.runner.run(st.session_state.github_tool._arun(user_query))
                     
                     # Mostrar respuesta
                     st.markdown("### 🎯 Respuesta:")

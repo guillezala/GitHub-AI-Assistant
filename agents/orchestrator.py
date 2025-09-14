@@ -4,18 +4,35 @@ from langchain.tools import BaseTool
 from langchain_community.chat_models import ChatOllama
 import asyncio, json, re
 
-class OrchestratorInput(BaseModel):
-    query: str = Field(...)
+from langchain.agents import AgentExecutor, create_react_agent
+from langchain.prompts import PromptTemplate
 
-class OrchestratorAgent(BaseTool):
-    name: str = "OrchestratorAgent"
-    description: str = "Decide qué agente usar (RAG, GitHub) y valida la calidad."
-    args_schema: ClassVar[type[BaseModel]] = OrchestratorInput
+def build_agent(tools, prompt, max_iterations=3) -> AgentExecutor:
+    llm = ChatOllama(model="llama3.2:3b", temperature=0)
+    agent = create_react_agent(llm=llm, tools=tools, prompt=prompt)
+    return AgentExecutor(
+        agent=agent,
+        tools=tools,
+        verbose=True,
+        handle_parsing_errors = True,
+        max_iterations=max_iterations,
+        return_intermediate_steps=True,
+        early_stopping_method="generate" 
 
-    agents: List[Tuple[str, BaseTool]] = Field(...)
-    llm: Any = Field(...)
-    logger: Callable[[str], None] = Field(default=print)
-    timeout_s: float = Field(default=90.0)
+    )
+
+class Orchestrator():
+    def __init__(
+        self,
+        tools: List[BaseTool],
+        llm: Any,
+        logger: Callable[[str], None] = print,
+        timeout_s: float = 300.0
+    ):
+        self.agents = tools
+        self.llm = llm
+        self.logger = logger
+        self.timeout_s = timeout_s
 
     @staticmethod
     def _strip_json(txt: str) -> dict:

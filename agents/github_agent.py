@@ -12,6 +12,8 @@ from langchain.tools import BaseTool
 from langchain.agents import AgentExecutor, create_react_agent
 from langchain.prompts import PromptTemplate
 
+from utils.process_tool_output import process_tool_output
+
 import os
 
 
@@ -100,11 +102,6 @@ class GitHubMCPAgent:
         assert self.session is not None, "No conectado"
         tools = (await self.session.list_tools()).tools
         return [{"name": t.name, "description": t.description, "inputSchema": t.inputSchema} for t in tools]
-
-    async def call(self, tool_name: str, tool_args: dict):
-        await self.ensure_connected()
-        assert self.session is not None, "No conectado"
-        return await self.session.call_tool(tool_name, tool_args)
     
     async def build_executor(
         self,
@@ -148,17 +145,10 @@ class GitHubMCPAgent:
             except Exception:
                 pass
 
-            # Extra guidance for the LLM about summarized outputs
-            extra_desc = (
-                "\n\nNote: Outputs may be summarized and limited in length "
-                "to the most relevant fields and a small number of items. "
-                "Totals are included. Do not repeat the same call if the observation already answers the question."
-            )
-
             tools.append(
                 MCPTool(
                     name=t.name,
-                    description=(t.description or f"Tool {t.name} from MCP server") + schema_hint + extra_desc,
+                    description=(t.description or f"Tool {t.name} from MCP server") + schema_hint,
                     session=self.session,
                     mcp_tool_name=t.name,
                 )
@@ -190,10 +180,13 @@ class GitHubMCPAgent:
                 Begin!
 
                 Question: {input}
-                {agent_scratchpad}
+                Thought: {agent_scratchpad}
                 """
 
-        prompt = PromptTemplate.from_template(REACT_PROMPT)
+        prompt = PromptTemplate(
+            input_variables=["tools", "tool_names", "input", "agent_scratchpad"],
+            template=REACT_PROMPT,
+        )
 
         from langchain import hub
         prompt2 = hub.pull("hwchase17/react")
@@ -225,6 +218,10 @@ class MCPTool(BaseTool):
     session: ClientSession
     mcp_tool_name: str
     schema: Dict[str, Any] = {}  # opcional: tu JSON Schema para validar
+    _cache: Dict[str, str] = {}
+
+    def _key(self, args: dict) -> str:
+        return f"{self.mcp_tool_name}:{json.dumps(args, sort_keys=True, ensure_ascii=False)}"
 
     def _run(self, tool_input, run_manager=None) -> str:
         # Soporta string o dict
@@ -247,7 +244,8 @@ class MCPTool(BaseTool):
         return asyncio.run(self._arun(args, run_manager))
 
     async def _arun(self, tool_input, run_manager=None) -> str:
-        args = tool_input
+        args = tool_input 
+
         if isinstance(args, str):
             stripped = args.strip()
             if stripped.startswith("{") or stripped.startswith("["):
@@ -258,34 +256,16 @@ class MCPTool(BaseTool):
             else:
                 args = {"query": args}
 
+        key = self._key(args)
+
+        if key in self._cache:
+            return f"(cached) {self._cache[key]}"
+        
         result = await self.session.call_tool(self.mcp_tool_name, args)
 
-        # Collect outputs by type
-        json_objs = []
-        text_chunks = []
-        other_chunks = []
-        for out in getattr(result, "content", []):
-            t = getattr(out, "type", "")
-            if t == "json":
-                try:
-                    json_objs.append(getattr(out, "content", {}))
-                except Exception:
-                    pass
-            elif t == "text":
-                text_chunks.append(getattr(out, "text", "") or "")
-            else:
-                other_chunks.append(str(out))
+        processed_output = process_tool_output(self.mcp_tool_name, result)
+        self._cache[key] = processed_output
 
-        if json_objs:
-            parts = [summarize_json(o) for o in json_objs]
-            out = "\n".join(p for p in parts if p).strip()
-            # Add a small hint that this is a summarized, sufficient observation
-            if out:
-                out = out[:MAX_CHARS]
-                return out + "\n(Resumen generado; no repitas la misma tool si ya responde la consulta)"
+        hint = "Observation summary (use this to answer; do not call the tool again if sufficient):\n"
 
-        # No JSON available, return text/other truncated in a safe budget
-        combined = "\n".join([*(c for c in text_chunks if c), *(c for c in other_chunks if c)]).strip()
-        if combined:
-            return combined[:MAX_CHARS]
-        return "(sin salida)"
+        return hint + processed_output
