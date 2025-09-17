@@ -188,8 +188,6 @@ class GitHubMCPAgent:
             template=REACT_PROMPT,
         )
 
-        from langchain import hub
-        prompt2 = hub.pull("hwchase17/react")
     
         # 6) Monta el agente ReAct
         agent = create_react_agent(llm, tools, prompt)

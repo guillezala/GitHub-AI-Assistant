@@ -94,10 +94,10 @@ Formato de respuesta esperado:
 
         try:
             # Generar respuesta del LLM
-            response = self.llm.generate([prompt]).generations[0][0].text.strip()
+            response = self.llm.invoke(prompt)
             
             # Limpiar respuesta (quitar markdown, espacios, etc.)
-            response = self._clean_llm_response(response)
+            response = self._clean_llm_response(response.content)
             
             # Parsear JSON
             llm_analysis = json.loads(response)

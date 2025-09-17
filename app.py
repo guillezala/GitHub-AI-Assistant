@@ -21,24 +21,10 @@ from utils.runner_async import AsyncRunner
 def streamlit_logger(msg):
     st.info(msg)
 
-def get_chat_llm():
-    if "chat_llm" not in st.session_state:
-        st.session_state.chat_llm = ChatOllama(
-            model="qwen2.5:7b-instruct-q4_0",
-            temperature=0.0,
-            # manda opciones a Ollama para reducir huella
-            model_kwargs={
-                "num_ctx": 2048,      # menos memoria
-                "num_thread": 4,      # CPU estable
-                "keep_alive": "30s"   # descarga del VRAM/RAM si está inactivo
-            }
-        )
-    return st.session_state.chat_llm
-
 def init_query_analyzer():
     """Inicializa el analizador de consultas"""
     if 'query_analyzer' not in st.session_state:
-        llm = get_chat_llm()
+        llm = st.session_state.chat_llm
         st.session_state.query_analyzer = QueryAnalyzer(llm=llm, logger=streamlit_logger)
     return st.session_state.query_analyzer
 
@@ -75,7 +61,16 @@ st.set_page_config(page_title="GitHub README Processor", page_icon="🐙", layou
 def streamlit_logger(msg: str):
     st.info(msg)
 
+st.session_state.chat_llm = ChatOllama(
+            model="qwen2.5:7b-instruct-q4_0",
+            temperature=0.0,
 
+            model_kwargs={
+                "num_ctx": 2048,      
+                "num_thread": 4,      
+                "keep_alive": "30s"   
+            }
+        )
 
 # 1) Un único runner vivo
 if "runner" not in st.session_state:
@@ -91,30 +86,33 @@ if "github_tool" not in st.session_state:
         st.warning(f"No se pudo conectar al servidor MCP todavía: {e}")
     # Whitelist compacta de tools MCP
     allowed_tools = {
-        "list_pull_requests",
+        "list_pull_requests", "list_releases",
     }
     executor = st.session_state.runner.run(
-        gh.build_executor(allowed_tools=allowed_tools, model="qwen2.5:7b-instruct", temperature=0.0, max_iterations=3)
+        gh.build_executor(allowed_tools=allowed_tools, model="qwen2.5:7b-instruct-q4_0", temperature=0.0, max_iterations=3)
     )
     st.session_state.gh_client = gh
     st.session_state.github_tool = GitHubExecTool(executor=executor)
 
 # 3) RAG (BaseTool síncrono)
-"""if "rag_tool" not in st.session_state:
+if "rag_tool" not in st.session_state:
     rag_tool = RAGAgent()
-    rag_tool.init_agent()  
-    st.session_state.rag_tool = rag_tool"""
+    rag_tool.init_agent() 
+    st.session_state.rag_tool = rag_tool
 
 # 4) Orquestador (usa judge_llm chat; no llames .run en Streamlit)
 if "orchestrator" not in st.session_state:
-    judge_llm = get_chat_llm()
+    judge_llm = st.session_state.chat_llm
     orchestrator = Orchestrator(
-        tools=[st.session_state.github_tool],
+        tools=[(st.session_state.github_tool.name, st.session_state.github_tool),
+                (st.session_state.rag_tool.name, st.session_state.rag_tool)
+        ],
         llm=judge_llm,
         logger=streamlit_logger,
-        timeout_s=300.0
+        timeout_s=6000.0
     )
     st.session_state.orchestrator = orchestrator
+    st.session_state.orch_executor = st.session_state.runner.run(orchestrator.build_orchestrator())
 
 # Cierre limpio al salir
 def _cleanup():
@@ -219,13 +217,13 @@ if send_query_button:
     if not user_query.strip():
         st.warning("⚠️ Por favor, escribe una pregunta.")
     else:
-        # Inicializar analizador
         with st.spinner("🔎 Analizando consulta..."):
-            analyzer = init_query_analyzer()
+            """analyzer = init_query_analyzer()
             
             analysis = analyzer.analyze_query(user_query)
             
-            is_relevant = analyzer.is_relevant_query(analysis, min_confidence)
+            is_relevant = analyzer.is_relevant_query(analysis, min_confidence)"""
+            is_relevant = True
         
         if is_relevant:
             # 4. Procesar consulta relevante
@@ -234,7 +232,8 @@ if send_query_button:
             with st.spinner("🤖 Buscando respuesta con el agente Orchestrator..."):
                 try:
                     # Ejecutar consulta
-                    respuesta = st.session_state.runner.run(st.session_state.github_tool._arun(user_query))
+                    
+                    respuesta = st.session_state.runner.run(st.session_state.orch_executor.ainvoke({"input": user_query}, include_run_info=True, return_intermediate_steps=False))
                     
                     # Mostrar respuesta
                     st.markdown("### 🎯 Respuesta:")
@@ -244,9 +243,9 @@ if send_query_button:
                 except Exception as e:
                     st.error(f"❌ Error al procesar la consulta: {str(e)}")
         
-        else:
+        #else:
             # 5. Manejar consulta irrelevante
-            st.write(analysis["razonamiento"])
+            #st.write(analysis["razonamiento"] + "\nPor favor, intenta con otra consulta relacionada con codigo de Github.")
 
 # Mostrar sugerencias si no hay consulta
 if not user_query.strip():

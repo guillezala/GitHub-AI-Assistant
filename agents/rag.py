@@ -9,7 +9,7 @@ from langchain_community.chat_models import ChatOllama
 
 class RAGAgent(BaseTool):
     name: str = "RAGAgent"
-    description: str = "Busca información relevante en Pinecone y genera una respuesta basada en la consulta y los chunks encontrados"
+    description: str = "Busca información relevante en el README del repositorio y genera una respuesta basada en la consulta y los chunks encontrados"
     embedder: object = Field(default=None)
     vector_store: object = Field(default=None)
     llm: object = Field(default=None)
@@ -43,6 +43,8 @@ class RAGAgent(BaseTool):
             "Si no encuentras suficiente información, indícalo.\n"
             f"Contexto:\n{context}\n\nPregunta: {query}\nRespuesta:"
         )
-        respuesta_obj = self.llm.generate([prompt])
-        respuesta = respuesta_obj.generations[0][0].text
-        return respuesta
+        out = self.llm.invoke(prompt)  # ChatModels aceptan string y devuelven un mensaje
+        try:
+            return out.content         # ChatModel
+        except AttributeError:
+            return str(out)  
