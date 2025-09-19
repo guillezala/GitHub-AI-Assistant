@@ -18,12 +18,6 @@ class Orchestrator():
         self.logger = logger
         self.timeout_s = timeout_s
 
-    @staticmethod
-    def _strip_json(txt: str) -> dict:
-        txt = re.sub(r"^```json|^```|```$", "", txt.strip(), flags=re.MULTILINE)
-        try: return json.loads(txt)
-        except: return {}
-
     async def build_orchestrator(self) -> AgentExecutor:
         llm = self.llm
         tools=[]
@@ -62,7 +56,7 @@ class Orchestrator():
             handle_parsing_errors = "Fix the format. Stick to the given prompt. Make sure there is a Thought, Action and Action Input.",
             max_iterations=6,
             return_intermediate_steps=True,
-            early_stopping_method="generate" 
-
+            early_stopping_method="generate"
+            
         )
         return executor

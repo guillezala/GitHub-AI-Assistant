@@ -14,12 +14,6 @@ class RAGAgent(BaseTool):
     vector_store: object = Field(default=None)
     llm: object = Field(default=None)
 
-    def init_agent(self):
-        self.vector_store = PineconeVectorStore(index_name="repo-text-embed-index")
-        self.embedder = Embedder()
-        self.llm = ChatOllama(model="llama3.2:1b", temperature=0)
-
-
     def _run(self, query: str) -> str:
         # 1. Obtener embedding de la consulta
         query_embedding = self.embedder.embed_chunk(query)

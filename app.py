@@ -18,43 +18,12 @@ from utils.query_analysis import QueryAnalyzer
 import asyncio
 from utils.runner_async import AsyncRunner
 
-def streamlit_logger(msg):
-    st.info(msg)
-
 def init_query_analyzer():
     """Inicializa el analizador de consultas"""
     if 'query_analyzer' not in st.session_state:
         llm = st.session_state.chat_llm
         st.session_state.query_analyzer = QueryAnalyzer(llm=llm, logger=streamlit_logger)
     return st.session_state.query_analyzer
-
-
-def show_query_suggestions():
-    """Muestra sugerencias de consultas válidas"""
-    st.info("💡 **Prueba con estas consultas de ejemplo:**")
-    
-    suggestions = [
-        "¿Cómo instalar la librería numpy?",
-        "¿Cuáles son las principales funcionalidades de React?",
-        "¿Qué dependencias necesita el proyecto tensorflow?",
-        "¿Cómo contribuir al repositorio de Django?",
-        "¿Cuál es la licencia del proyecto pandas?",
-        "¿Hay ejemplos de uso en el repositorio de scikit-learn?"
-    ]
-    
-    cols = st.columns(2)
-    for i, suggestion in enumerate(suggestions):
-        col = cols[i % 2]
-        with col:
-            if st.button(suggestion, key=f"suggestion_{i}", use_container_width=True):
-                st.session_state.user_query = suggestion
-                st.rerun()
-
-def handle_irrelevant_query(analysis):
-    """Maneja consultas que no parecen relevantes"""
-    st.write(analysis["razonamiento"])
-    
-    return False
 
 st.set_page_config(page_title="GitHub README Processor", page_icon="🐙", layout="wide")
 
@@ -96,8 +65,9 @@ if "github_tool" not in st.session_state:
 
 # 3) RAG (BaseTool síncrono)
 if "rag_tool" not in st.session_state:
-    rag_tool = RAGAgent()
-    rag_tool.init_agent() 
+    rag_tool = RAGAgent(vector_store=PineconeVectorStore(index_name="repo-text-embed-index"),
+                        embedder=Embedder(),
+                        llm=st.session_state.chat_llm)
     st.session_state.rag_tool = rag_tool
 
 # 4) Orquestador (usa judge_llm chat; no llames .run en Streamlit)
@@ -125,22 +95,6 @@ def _cleanup():
 
 atexit.register(_cleanup)
 st.title("🐙 Procesador de README de GitHub")
-
-# Sidebar para configuración
-with st.sidebar:
-    st.header("⚙️ Configuración")
-    
-    # Control de confianza mínima
-    min_confidence = st.slider(
-        "Confianza mínima para consultas",
-        min_value=0.1,
-        max_value=1.0,
-        value=0.2,  # Más permisivo para README específicos
-        step=0.1,
-        help="Nivel mínimo de confianza para procesar automáticamente la consulta"
-    )
-    
-    st.markdown("---")
 
 # === SECCIÓN 1: PROCESAMIENTO DE README ===
 st.header("📋 Procesar README")
@@ -247,10 +201,6 @@ if send_query_button:
             # 5. Manejar consulta irrelevante
             #st.write(analysis["razonamiento"] + "\nPor favor, intenta con otra consulta relacionada con codigo de Github.")
 
-# Mostrar sugerencias si no hay consulta
-if not user_query.strip():
-    st.markdown("---")
-    show_query_suggestions()
 
 # Footer con información
 st.markdown("---")

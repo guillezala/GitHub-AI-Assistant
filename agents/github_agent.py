@@ -5,7 +5,6 @@ from typing import Optional, Any, Dict, Iterable
 
 from mcp import ClientSession, StdioServerParameters
 from mcp.client.stdio import stdio_client
-from mcp.types import CallToolRequest
 
 from langchain_community.chat_models import ChatOllama
 from langchain.tools import BaseTool
@@ -16,46 +15,6 @@ from utils.process_tool_output import process_tool_output
 
 import os
 
-
-MAX_ITEMS = 20
-MAX_CHARS = 1800 
-
-def summarize_list_of_dicts(items: list[dict]) -> str:
-    total = len(items)
-    # Heuristics for common GitHub entities
-    lines = []
-    for it in items[:MAX_ITEMS]:
-        if isinstance(it, dict):
-            num = it.get("number") or it.get("id") or "-"
-            state = it.get("state") or it.get("status") or ""
-            title = it.get("title") or it.get("name") or it.get("path") or "(sin título)"
-            line = f"- #{num} {state} — {title}" if state else f"- #{num} — {title}"
-            lines.append(line)
-        else:
-            lines.append(f"- {str(it)[:120]}")
-    more = ""
-    if total > MAX_ITEMS:
-        more = f"\n… y {total - MAX_ITEMS} más."
-    header = f"Total: {total}\n"
-    return header + "\n".join(lines) + more
-
-def summarize_json(obj: Any) -> str:
-    try:
-        if isinstance(obj, list):
-            if obj and isinstance(obj[0], dict):
-                return summarize_list_of_dicts(obj)
-            # fallback: truncate generic list
-            s = "\n".join([json.dumps(x, ensure_ascii=False) for x in obj[:MAX_ITEMS]])
-            extra = f"\n… y {len(obj) - MAX_ITEMS} más." if len(obj) > MAX_ITEMS else ""
-            return f"Total: {len(obj)}\n" + s + extra
-        if isinstance(obj, dict):
-            # common pattern: { items: [...] }
-            if isinstance(obj.get("items"), list):
-                return summarize_list_of_dicts(obj["items"])
-                # fallback to pretty JSON
-        return json.dumps(obj, ensure_ascii=False)[:MAX_CHARS]
-    except Exception:
-        return json.dumps(obj, ensure_ascii=False)[:MAX_CHARS]
 class GitHubMCPAgent:
     def __init__(self, server_cmd: str = "docker", pat_env: str = "GITHUB_TOKEN"):
         self.server_cmd = server_cmd
