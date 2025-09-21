@@ -55,7 +55,7 @@ if "github_tool" not in st.session_state:
         st.warning(f"No se pudo conectar al servidor MCP todavía: {e}")
     # Whitelist compacta de tools MCP
     allowed_tools = {
-        "list_pull_requests", "list_releases",
+        "list_pull_requests", "list_releases", "list_issues", "get_file_contents"
     }
     executor = st.session_state.runner.run(
         gh.build_executor(allowed_tools=allowed_tools, model="qwen2.5:7b-instruct-q4_0", temperature=0.0, max_iterations=3)

@@ -16,6 +16,8 @@ def process_tool_output(tool_name: str, output: str) -> str:
     tools_available = {
         "list_pull_requests": list_pull_requests,
         "list_releases": list_releases,
+        "list_issues": list_issues,
+        "get_file_contents": get_file_contents
     }
     if tool_name in tools_available:
         return tools_available[tool_name](output)
@@ -95,3 +97,68 @@ def list_releases(output: str) -> List:
         result_lines.append(f"Release {name} ({tag_name}) published at {published_at}: {url}\n {body}")
 
     return "\n".join(result_lines)
+
+
+def list_issues(output: str) -> List:
+    """
+    Specific processing for the list_issues tool output.
+    This function can be customized based on specific needs.
+
+    Args:
+        output (str): The raw output from the list_issues tool.
+
+    Returns:
+        str: The processed output.
+    """
+    content = getattr(output, "content", [])
+    try:
+        if isinstance(content, List) and content:
+            text = getattr(content[0], "text", "")
+        else:
+            text = ""
+        try:
+            list = json.loads(text)
+        except json.JSONDecodeError:
+            return "Error: Could not list issues."
+    except Exception as e:
+        print(f"Error processing output: {e}")
+
+    result_lines = []
+
+    issues = list.get("issues", [])
+
+    for issue in issues:
+        title = issue.get("title", "No title")
+        state = issue.get("state", "No state")
+        number = issue.get("number", "No number")
+        body = issue.get("body", "No body")
+
+        if len(body) > 500:
+            body = body[:500] + "..."
+
+        result_lines.append(f"Issue #{number} - {title} ({state}): {body}")
+
+    return "\n".join(result_lines)
+
+def get_file_contents(output: str) -> str:
+    """
+    Specific processing for the get_file_contents tool output.
+    This function can be customized based on specific needs.
+
+    Args:
+        output (str): The raw output from the get_file_contents tool.
+
+    Returns:
+        str: The processed output.
+    """
+    content = getattr(output, "content", [])
+    try:
+        if isinstance(content, List) and content:
+            resource = getattr(content[1], "resource", "")
+            text = getattr(resource, "text", "")
+        else:
+            text = ""
+    except Exception as e:
+        print(f"Error processing output: {e}")
+
+    return text

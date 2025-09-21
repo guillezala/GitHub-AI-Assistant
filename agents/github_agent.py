@@ -134,7 +134,8 @@ class GitHubMCPAgent:
                 IMPORTANT:
                 - End with "Final Answer:" once you can fully answer the question.
                 - Do not call the same tool more than 2 times in a row if it doesn’t help.
-                - The tool will return JSON outputs. To create the Observation, summarized it using the relevant information in relation with the input.
+                - Do not add an optional parameter to the tool if not necessary.
+                - Every tool input must have "repo" and "owner" parameters.
 
                 Begin!
 
@@ -177,9 +178,6 @@ class MCPTool(BaseTool):
     schema: Dict[str, Any] = {}  # opcional: tu JSON Schema para validar
     _cache: Dict[str, str] = {}
 
-    def _key(self, args: dict) -> str:
-        return f"{self.mcp_tool_name}:{json.dumps(args, sort_keys=True, ensure_ascii=False)}"
-
     def _run(self, tool_input, run_manager=None) -> str:
         # Soporta string o dict
         args = tool_input
@@ -213,16 +211,9 @@ class MCPTool(BaseTool):
             else:
                 args = {"query": args}
 
-        key = self._key(args)
-
-        if key in self._cache:
-            return f"(cached) {self._cache[key]}"
         
         result = await self.session.call_tool(self.mcp_tool_name, args)
 
         processed_output = process_tool_output(self.mcp_tool_name, result)
-        self._cache[key] = processed_output
 
-        hint = "Observation summary (use this to answer; do not call the tool again if sufficient):\n"
-
-        return hint + processed_output
+        return processed_output
