@@ -8,7 +8,7 @@ class ArgsSchema(BaseModel):
 
 class GitHubExecTool(BaseTool):
     name: str = "GitHubAgent"
-    description: str = "Usa el agente GitHub para responder consultas sobre repositorios. Puede acceder al contenido y detalles de git de los repositorios"
+    description: str = "Use the GitHub agent to answer queries about repositories. It can access the content and git details of the repositories"
     executor: AgentExecutor
     args_schema: type = ArgsSchema
 

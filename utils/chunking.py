@@ -34,30 +34,3 @@ class Chunker:
             i += self.max_tokens - overlap if overlap else self.max_tokens
         return chunks
     
-
-from transformers import AutoTokenizer
-
-class LlamaChunker:
-    def __init__(self, model_name="meta-llama/Meta-Llama-3-8B", max_tokens=800):
-        self.tokenizer = AutoTokenizer.from_pretrained(model_name)
-        self.max_tokens = max_tokens
-
-    def chunk(self, text, overlap=0, return_metadata=False):
-        input_ids = self.tokenizer.encode(text, add_special_tokens=False)
-        chunks = []
-        i = 0
-        while i < len(input_ids):
-            chunk_ids = input_ids[i: i + self.max_tokens]
-            decoded = self.tokenizer.decode(chunk_ids)
-
-            if return_metadata:
-                chunks.append({
-                    "text": decoded,
-                    "start": i,
-                    "end": i + len(chunk_ids)
-                })
-            else:
-                chunks.append(decoded)
-
-            i += self.max_tokens - overlap if overlap else self.max_tokens
-        return chunks

@@ -40,36 +40,36 @@ st.session_state.chat_llm = ChatOllama(
             }
         )
 
-# 1) Un único runner vivo
+# 1) Async runner
 if "runner" not in st.session_state:
     st.session_state.runner = AsyncRunner()
 
-# 2) GitHub MCP -> conectar + build executor (dentro del runner)
+# 2) GitHub MCP 
 if "github_tool" not in st.session_state:
     gh = GitHubMCPAgent()
     try:
-        # Conexión MCP (stdio) en el loop del runner
+
         st.session_state.runner.run(gh.connect())
     except Exception as e:
-        st.warning(f"No se pudo conectar al servidor MCP todavía: {e}")
-    # Whitelist compacta de tools MCP
+        st.warning(f"Could not connect to MCP Server: {e}")
+
     allowed_tools = {
-        "list_pull_requests", "list_releases", "list_issues", "get_file_contents"
+        "list_pull_requests", "list_releases", "list_issues", "get_file_contents", "get_pull_request", "get_issue", "get_release_by_tag"
     }
     executor = st.session_state.runner.run(
-        gh.build_executor(allowed_tools=allowed_tools, model="qwen2.5:7b-instruct-q4_0", temperature=0.0, max_iterations=3)
+        gh.build_executor(allowed_tools=allowed_tools, model="qwen2.5:7b-instruct-q4_0", temperature=0.0, max_iterations=5)
     )
     st.session_state.gh_client = gh
     st.session_state.github_tool = GitHubExecTool(executor=executor)
 
-# 3) RAG (BaseTool síncrono)
+# 3) RAG 
 if "rag_tool" not in st.session_state:
     rag_tool = RAGAgent(vector_store=PineconeVectorStore(index_name="repo-text-embed-index"),
                         embedder=Embedder(),
                         llm=st.session_state.chat_llm)
     st.session_state.rag_tool = rag_tool
 
-# 4) Orquestador (usa judge_llm chat; no llames .run en Streamlit)
+# 4) Orchestrator -> build executor 
 if "orchestrator" not in st.session_state:
     judge_llm = st.session_state.chat_llm
     orchestrator = Orchestrator(
@@ -92,84 +92,70 @@ def _cleanup():
             st.session_state.runner.stop()
 
 atexit.register(_cleanup)
-st.title("🐙 Procesador de README de GitHub")
+st.title("🐙 GitHub AI Assistant")
 
-# === SECCIÓN 1: PROCESAMIENTO DE README ===
-st.header("📋 Procesar README")
+# === SECTION 1 ===
+st.header("📋 Process README")
 
 col1, col2 = st.columns(2)
 with col1:
-    owner = st.text_input("Creador del repositorio (owner)", "", key="owner_input")
+    owner = st.text_input("Repository owner", "", key="owner_input")
 with col2:
-    repo = st.text_input("Nombre del repositorio", "", key="repo_input")
+    repo = st.text_input("Name of the repository", "", key="repo_input")
 
-if st.button("🚀 Procesar README", type="primary"):
+if st.button("🚀 Process README", type="primary"):
     if not owner or not repo:
-        st.warning("Por favor, ingresa el creador y el nombre del repositorio.")
+        st.warning("Please enter the owner and the repository name.")
     else:
-        # Descargar README
         gh_client = GitHubClient()
         readme = gh_client.fetch_readme(owner, repo)
         if not readme:
-            st.error("No se pudo descargar el README.")
+            st.error("The README could not be downloaded.")
         else:
-            st.success("✅ README descargado correctamente.")
-            
-            # Guardar info del repo en session state
-            st.session_state.current_repo = f"{owner}/{repo}"
+            st.success("✅ README downloaded successfully.")
 
-            # Chunking
-            with st.spinner("📝 Dividiendo README en chunks..."):
+            with st.spinner("📝 Dividing README into chunks..."):
                 chunker = Chunker(max_tokens=800)
                 chunks = chunker.chunk(readme, overlap=100)
-            st.success(f"📄 README dividido en {len(chunks)} chunks.")
+            st.success(f"📄 README divided into {len(chunks)} chunks.")
 
-            # Embeddings
-            with st.spinner("🧠 Calculando embeddings..."):
+            with st.spinner("🧠 Calculating embeddings..."):
                 embedder = Embedder()
                 embeddings = embedder.embed_chunks(chunks, normalize=True, return_with_text=True)
-            st.success(f"✨ Se calcularon {len(embeddings)} embeddings.")
+            st.success(f"✨ {len(embeddings)} embeddings were calculated.")
 
             try:
                 document = "README"
-                with st.spinner("💾 Guardando embeddings en Pinecone..."):
+                with st.spinner("💾 Registering embeddings in Pinecone..."):
                     vector_store = PineconeVectorStore(index_name="repo-text-embed-index")
                     vector_store.upsert_embeddings(embeddings, document, repo)
-                st.success("🎉 Embeddings guardados en Pinecone correctamente.")
+                st.success("🎉 Embeddings saved in Pinecone successfully.")
                 
-                # Marcar como procesado
                 st.session_state.readme_processed = True
                 
             except Exception as e:
-                st.error(f"❌ Error al guardar los embeddings en Pinecone: {e}")
+                st.error(f"❌ Error saving embeddings in Pinecone.: {e}")
 
-# === SECCIÓN 2: CONSULTAS ===
-st.header("💬 Consultar Repositorios")
+# === SECTION 2 ===
+st.header("💬 Query Repositories")
 
-# Info sobre repositorios disponibles
-if st.session_state.get('readme_processed', False):
-    st.info(f"📁 Último README procesado: `{st.session_state.get('current_repo', 'Repositorio')}`")
 
-st.markdown("💡 Puedes consultar cualquier repositorio que haya sido procesado previamente en la base de vectores.")
+st.markdown("💡 You can make queries about any public GitHub repository. If you want to have access to the information contained in the README, process it before writing your questions.")
 
-# Input de consulta
 user_query = st.text_area(
-    "✍️ **Escribe tu pregunta sobre cualquier repositorio:**",
+    "✍️ **Write your question about any repository:**",
     value=st.session_state.get('user_query', ''),
     height=100,
-    placeholder="Ej: ¿Cómo instalar numpy? ¿Cuáles son las funcionalidades de tensorflow/tensorflow?",
     key="query_input"
 )
 
-# Boton de acción
-send_query_button = st.button("🔍 Enviar Consulta", type="primary")
+send_query_button = st.button("🔍 Send query", type="primary")
 
-# Procesar consulta
 if send_query_button:
     if not user_query.strip():
-        st.warning("⚠️ Por favor, escribe una pregunta.")
+        st.warning("⚠️ Please, write a query.")
     else:
-        with st.spinner("🔎 Analizando consulta..."):
+        with st.spinner("🔎 Analyzing query..."):
             """analyzer = init_query_analyzer()
             
             analysis = analyzer.analyze_query(user_query)
@@ -178,33 +164,30 @@ if send_query_button:
             is_relevant = True
         
         if is_relevant:
-            # 4. Procesar consulta relevante
-            st.success("✅ Consulta válida. Procesando...")
+            st.success("✅ Valid query. Processing...")
             
-            with st.spinner("🤖 Buscando respuesta con el agente Orchestrator..."):
+            with st.spinner("🤖 Searching for answer with the Orchestrator agent..."):
                 try:
-                    # Ejecutar consulta
                     
                     respuesta = st.session_state.runner.run(st.session_state.orch_executor.ainvoke({"input": user_query}, include_run_info=True, return_intermediate_steps=False))
-                    
-                    # Mostrar respuesta
-                    st.markdown("### 🎯 Respuesta:")
+
+                    st.markdown("### 🎯 Answer:")
                     st.write(respuesta["output"] if isinstance(respuesta, dict) else respuesta)
                                         
                 except Exception as e:
-                    st.error(f"❌ Error al procesar la consulta: {str(e)}")
+                    st.error(f"❌ Error processing the query: {str(e)}")
         
         #else:
             # 5. Manejar consulta irrelevante
-            #st.write(analysis["razonamiento"] + "\nPor favor, intenta con otra consulta relacionada con codigo de Github.")
+            #st.write(analysis["reasoning"] + "\nPlease try with another query related to GitHub code.")
 
 
-# Footer con información
+#Footer
 st.markdown("---")
 st.markdown(
     """
     <div style='text-align: center; color: #666;'>
-        🐙 GitHub README Processor | Consulta repositorios procesados previamente | Powered by RAG + LLM
+        🐙 GitHub README Processor | Query public repositories on GitHub | Powered by RAG + LLM
     </div>
     """, 
     unsafe_allow_html=True

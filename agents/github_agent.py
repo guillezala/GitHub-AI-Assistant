@@ -24,10 +24,10 @@ class GitHubMCPAgent:
 
     async def connect(self, extra_env: dict | None = None, args: list[str] | None = None):
         if self.session is not None:
-            return  # ya conectados
+            return 
 
         if not self.pat:
-            raise ValueError("GITHUB token no configurado en entorno.")
+            raise ValueError("GITHUB token not configured in environment.")
 
         if args is None:
             args = [
@@ -58,7 +58,7 @@ class GitHubMCPAgent:
             await self.connect()
 
     async def list_tools(self):
-        assert self.session is not None, "No conectado"
+        assert self.session is not None, "Not connected"
         tools = (await self.session.list_tools()).tools
         return [{"name": t.name, "description": t.description, "inputSchema": t.inputSchema} for t in tools]
     
@@ -70,7 +70,6 @@ class GitHubMCPAgent:
         max_iterations: int = 8,
         prompt_template: Optional[str] = None,
     ) -> AgentExecutor:
-        """Crea un AgentExecutor ReAct (LangChain) que usa las tools del servidor MCP."""
         await self.ensure_connected()
         assert self.session is not None
 
@@ -88,7 +87,7 @@ class GitHubMCPAgent:
             schema_hint = ""
             try:
                 schema_dict = t.inputSchema or {}
-                # Muestra solo propiedades y required si existen
+
                 props = schema_dict.get("properties") or {}
                 req = schema_dict.get("required") or []
                 if props or req:

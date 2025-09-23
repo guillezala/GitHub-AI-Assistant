@@ -95,7 +95,7 @@ class PineconeVectorStore:
                 })
 
         self.index.upsert(vectors=vectors)
-        print(f"[Pinecone] Insertados {len(vectors)} vectores.")
+        print(f"[Pinecone] {len(vectors)} vectors inserted.")
 
     def query(self, embedding: List[float], top_k: int = 5) -> List[Dict]:
         results = self.index.query(vector=embedding, top_k=top_k, include_metadata=True)

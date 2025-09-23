@@ -1,4 +1,4 @@
-import asyncio, threading, concurrent.futures
+import asyncio, threading
 
 class AsyncRunner:
     def __init__(self):
@@ -11,7 +11,6 @@ class AsyncRunner:
         self.loop.run_forever()
 
     def run(self, coro, timeout: float | None = None):
-        """Ejecuta una corutina en el loop del hilo y devuelve el resultado (bloqueante)."""
         fut = asyncio.run_coroutine_threadsafe(coro, self.loop)
         return fut.result(timeout=timeout)
 

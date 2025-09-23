@@ -5,7 +5,7 @@ from langchain_ollama import ChatOllama
 
 class RAGAgent(BaseTool):
     name: str = "RAGAgent"
-    description: str = "Busca información relevante en el README del repositorio y genera una respuesta basada en la consulta y los chunks encontrados"
+    description: str = "Search for relevant information in the repository's README and generate a response based on the query and the found chunks"
     embedder: object = Field(default=None)
     vector_store: object = Field(default=None)
     llm: object = Field(default=None)
@@ -28,10 +28,10 @@ class RAGAgent(BaseTool):
         context = "\n---\n".join(context_items)
        
         prompt = (
-            "Eres un asistente experto en repositorios de GitHub.\n"
-            "Utiliza el contexto proporcionado para responder la pregunta del usuario.\n"
-            "Si no encuentras suficiente información, indícalo.\n"
-            f"Contexto:\n{context}\n\nPregunta: {query}\nRespuesta:"
+            "You are an expert assistant in GitHub repositories.\n"
+            "Use the provided context to answer the user's question.\n"
+            "If you don't find enough information, indicate it.\n"
+            f"Context:\n{context}\n\nQuestion: {query}\nAnswer:"
         )
         out = self.llm.invoke(prompt)  
         try:
