@@ -83,7 +83,6 @@ if "orchestrator" not in st.session_state:
     st.session_state.orchestrator = orchestrator
     st.session_state.orch_executor = st.session_state.runner.run(orchestrator.build_orchestrator())
 
-# Cierre limpio al salir
 def _cleanup():
     try:
         if "gh_client" in st.session_state:
@@ -190,9 +189,8 @@ if send_query_button:
                     
                     # Mostrar respuesta
                     st.markdown("### 🎯 Respuesta:")
-                    st.write(respuesta)
-                    
-                    
+                    st.write(respuesta["output"] if isinstance(respuesta, dict) else respuesta)
+                                        
                 except Exception as e:
                     st.error(f"❌ Error al procesar la consulta: {str(e)}")
         

@@ -74,20 +74,17 @@ class GitHubMCPAgent:
         await self.ensure_connected()
         assert self.session is not None
 
-        # 1) Descubre tools del servidor MCP
         listed = await self.session.list_tools()
         available = {t.name: t for t in listed.tools}
 
-        # 2) Filtra por whitelist (si se pasa). Si None, usa todas (no recomendado en prod)
         if allowed_tools is None:
             selected = available.values()
         else:
             selected = [available[name] for name in allowed_tools if name in available]
 
-        # 3) Crea wrappers LangChain -> MCP
         tools = []
         for t in selected:
-            # Intenta renderizar un resumen del JSON Schema para guiar al modelo
+            
             schema_hint = ""
             try:
                 schema_dict = t.inputSchema or {}
@@ -112,10 +109,8 @@ class GitHubMCPAgent:
                 )
             )
 
-        # 4) LLM de Ollama
         llm = ChatOllama(model=model, temperature=temperature)
 
-        # 5) Prompt ReAct sobrio
         REACT_PROMPT = """Answer the following questions as best you can. You have access to the following tools:
                 {tools}
 
@@ -146,8 +141,6 @@ class GitHubMCPAgent:
             template=REACT_PROMPT,
         )
 
-    
-        # 6) Monta el agente ReAct
         agent = create_react_agent(llm, tools, prompt)
         executor = AgentExecutor(
             agent=agent,
@@ -176,7 +169,7 @@ class MCPTool(BaseTool):
     _cache: Dict[str, str] = {}
 
     def _run(self, tool_input, run_manager=None) -> str:
-        # Soporta string o dict
+
         args = tool_input
         if isinstance(args, str):
             stripped = args.strip()

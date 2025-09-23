@@ -11,11 +11,11 @@ class RAGAgent(BaseTool):
     llm: object = Field(default=None)
 
     def _run(self, query: str) -> str:
-        # 1. Obtener embedding de la consulta
+ 
         query_embedding = self.embedder.embed_chunk(query)
-        # 2. Buscar chunks relevantes en Pinecone
-        results = self.vector_store.query(query_embedding, top_k=5)
-        # 3. Extraer textos y metadatos de los chunks encontrados
+
+        results = self.vector_store.query(query_embedding, top_k=3)
+
         context_items = []
         for r in results:
             meta = r.get("metadata", {})
@@ -26,15 +26,15 @@ class RAGAgent(BaseTool):
             else:
                 context_items.append(text)
         context = "\n---\n".join(context_items)
-        # 4. Generar respuesta usando el LLM y el contexto
+       
         prompt = (
             "Eres un asistente experto en repositorios de GitHub.\n"
             "Utiliza el contexto proporcionado para responder la pregunta del usuario.\n"
             "Si no encuentras suficiente información, indícalo.\n"
             f"Contexto:\n{context}\n\nPregunta: {query}\nRespuesta:"
         )
-        out = self.llm.invoke(prompt)  # ChatModels aceptan string y devuelven un mensaje
+        out = self.llm.invoke(prompt)  
         try:
-            return out.content         # ChatModel
+            return out.content        
         except AttributeError:
             return str(out)  

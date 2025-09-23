@@ -45,7 +45,7 @@ def list_pull_requests(output: str) -> List:
         try:
             list = json.loads(text)
         except json.JSONDecodeError:
-            return "Error: Could not list pull requests."
+            return "Error: Could not list pull requests. Try again by using just the required parameters."
     except Exception as e:
         print(f"Error processing output: {e}")
 
@@ -81,7 +81,7 @@ def list_releases(output: str) -> List:
         try:
             list = json.loads(text)
         except json.JSONDecodeError:
-            return "Error: Could not list releases."
+            return "Error: Could not list releases. Try again by using just the required parameters."
     except Exception as e:
         print(f"Error processing output: {e}")
 
@@ -119,7 +119,7 @@ def list_issues(output: str) -> List:
         try:
             list = json.loads(text)
         except json.JSONDecodeError:
-            return "Error: Could not list issues."
+            return "Error: Could not list issues. Try again by using just the required parameters."
     except Exception as e:
         print(f"Error processing output: {e}")
 
@@ -159,6 +159,6 @@ def get_file_contents(output: str) -> str:
         else:
             text = ""
     except Exception as e:
-        print(f"Error processing output: {e}")
+        return f"Error processing output: {e}. Try again by using just the required parameters."
 
     return text
