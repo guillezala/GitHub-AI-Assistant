@@ -5,3 +5,5 @@ streamlit
 sentence_transformers
 pinecone
 google-api-core
+langchain
+langchain-ollama

@@ -7,8 +7,7 @@ from utils.embeddings import Embedder
 from utils.embeddings import PineconeVectorStore
 
 from agents.rag import RAGAgent
-from langchain_community.chat_models import ChatOllama
-from langchain_community.llms import Ollama
+from langchain_ollama  import ChatOllama
 
 from agents.orchestrator import Orchestrator
 from agents.github_agent import GitHubMCPAgent

@@ -1,16 +1,21 @@
 from langchain.tools import BaseTool
 from langchain.agents import AgentExecutor
 
+from pydantic import BaseModel, Field
+
+class ArgsSchema(BaseModel):
+    input: str = Field(..., description="Reasoning based on the user query with all the necessary details")
 
 class GitHubExecTool(BaseTool):
     name: str = "GitHubAgent"
     description: str = "Usa el agente GitHub para responder consultas sobre repositorios. Puede acceder al contenido y detalles de git de los repositorios"
     executor: AgentExecutor
+    args_schema: type = ArgsSchema
 
-    def _run(self, query: str) -> str:
-        res = self.executor.invoke({"input": query})
+    def _run(self, input: str) -> str:
+        res = self.executor.invoke({"input": input})
         return res["output"] if isinstance(res, dict) else res
 
-    async def _arun(self, query: str) -> str:
-        res = await self.executor.ainvoke({"input": query}, include_run_info=True, return_intermediate_steps=False)
+    async def _arun(self, input: str) -> str:
+        res = await self.executor.ainvoke({"input": input}, include_run_info=True, return_intermediate_steps=False)
         return res["output"] if isinstance(res, dict) else res

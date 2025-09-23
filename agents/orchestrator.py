@@ -1,9 +1,11 @@
-from typing import List, Tuple, Callable, Any, ClassVar
+from typing import List, Callable, Any
 from langchain.tools import BaseTool
-import asyncio, json, re
+import asyncio
 
 from langchain.agents import AgentExecutor, create_react_agent
 from langchain.prompts import ChatPromptTemplate
+
+
 
 class Orchestrator():
     def __init__(
@@ -34,7 +36,7 @@ class Orchestrator():
             "Question: the input question\n"
             "Thought: reasoning\n"
             "Action: one of [{tool_names}]\n"
-            "Action Input: input for the action\n"
+            "Action Input: A brief reasoning based on the Question and with all the details needed\n"
             "Observation: result of the action\n"
             "... (repeat as needed)\n"
             "Thought: I now know the final answer\n"

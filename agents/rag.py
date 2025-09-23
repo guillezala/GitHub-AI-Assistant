@@ -1,11 +1,7 @@
 from langchain.tools import BaseTool
 from pydantic import Field
 
-from utils.chunking import Chunker
-from utils.embeddings import Embedder
-from utils.embeddings import PineconeVectorStore
-
-from langchain_community.chat_models import ChatOllama
+from langchain_ollama import ChatOllama
 
 class RAGAgent(BaseTool):
     name: str = "RAGAgent"

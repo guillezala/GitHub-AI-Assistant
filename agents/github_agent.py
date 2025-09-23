@@ -6,7 +6,7 @@ from typing import Optional, Any, Dict, Iterable
 from mcp import ClientSession, StdioServerParameters
 from mcp.client.stdio import stdio_client
 
-from langchain_community.chat_models import ChatOllama
+from langchain_ollama import ChatOllama
 from langchain.tools import BaseTool
 from langchain.agents import AgentExecutor, create_react_agent
 from langchain.prompts import PromptTemplate
@@ -76,7 +76,6 @@ class GitHubMCPAgent:
 
         # 1) Descubre tools del servidor MCP
         listed = await self.session.list_tools()
-        print(listed)
         available = {t.name: t for t in listed.tools}
 
         # 2) Filtra por whitelist (si se pasa). Si None, usa todas (no recomendado en prod)
@@ -133,8 +132,7 @@ class GitHubMCPAgent:
 
                 IMPORTANT:
                 - End with "Final Answer:" once you can fully answer the question.
-                - Do not call the same tool more than 2 times in a row if it doesn’t help.
-                - Do not add an optional parameter to the tool if not necessary.
+                - Do NOT add an optional parameter to the tool if not necessary or explicitly mentioned in the input.
                 - Every tool input must have "repo" and "owner" parameters.
 
                 Begin!
@@ -175,7 +173,6 @@ class MCPTool(BaseTool):
     description: str
     session: ClientSession
     mcp_tool_name: str
-    schema: Dict[str, Any] = {}  # opcional: tu JSON Schema para validar
     _cache: Dict[str, str] = {}
 
     def _run(self, tool_input, run_manager=None) -> str:
