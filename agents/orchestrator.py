@@ -3,7 +3,7 @@ from langchain.tools import BaseTool
 import asyncio
 
 from langchain.agents import AgentExecutor, create_react_agent
-from langchain.prompts import ChatPromptTemplate
+from langchain.prompts import PromptTemplate
 
 
 
@@ -26,31 +26,36 @@ class Orchestrator():
         for _, agent in self.agents:
             tools.append(agent)
 
-        REACT_PROMPT = ChatPromptTemplate.from_messages([
-            ("system",
-            "You are a helpful orchestrator. Use tools only when needed. "
-            "Cite tool names exactly as provided."),
-            ("human",
-            "Answer the question using the available tools:\n\n{tools}\n\n"
-            "Format:\n"
-            "Question: the input question\n"
-            "Thought: reasoning\n"
-            "Action: one of [{tool_names}]\n"
-            "Action Input: A brief reasoning based on the Question and with all the details needed\n"
-            "Observation: result of the action\n"
-            "... (repeat as needed)\n"
-            "Thought: I now know the final answer\n"
-            "Final Answer: the final answer\n\n"
-            "Rules:\n"
-            "- End with 'Final Answer:' once you can fully answer.\n"
-            "- Do not call the same tool more than 2 times in a row.\n"
-            "- Keep observations concise and relevant.\n\n"
-            "Question: {input}\n"
-            "Thought:{agent_scratchpad}")
-        ])
+        REACT_PROMPT = """ Answer the following questions as best you can. You have access to the following tools
+            {tools}
+
+            Use the following format:
+
+            Question: the input question
+            Thought: reasoning
+            Action: one of [{tool_names}]
+            Action Input: A brief reasoning based on the Question and with all the details needed\n
+            Observation: result of the action
+            ... (repeat as needed)
+
+            Thought: I now know the final answer
+            Final Answer: the final answer
+
+            Rules:
+            - End with 'Final Answer:' once you can fully answer.
+            - Keep observations concise and relevant.
+
+            Question: {input}
+            Thought:{agent_scratchpad}"""
+        
+
+        prompt = PromptTemplate(
+            input_variables=["tools", "tool_names", "input", "agent_scratchpad"],
+            template=REACT_PROMPT,
+        )
 
 
-        agent = create_react_agent(llm, tools, REACT_PROMPT)
+        agent = create_react_agent(llm, tools, prompt)
         executor = AgentExecutor(
             agent=agent,
             tools=tools,

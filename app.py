@@ -115,8 +115,8 @@ if st.button("🚀 Process README", type="primary"):
             st.success("✅ README downloaded successfully.")
 
             with st.spinner("📝 Dividing README into chunks..."):
-                chunker = Chunker(max_tokens=800)
-                chunks = chunker.chunk(readme, overlap=100)
+                chunker = Chunker(max_tokens=350)
+                chunks = chunker.chunk(readme, overlap=50)
             st.success(f"📄 README divided into {len(chunks)} chunks.")
 
             with st.spinner("🧠 Calculating embeddings..."):
@@ -127,7 +127,7 @@ if st.button("🚀 Process README", type="primary"):
             try:
                 document = "README"
                 with st.spinner("💾 Registering embeddings in Pinecone..."):
-                    vector_store = PineconeVectorStore(index_name="repo-text-embed-index")
+                    vector_store = PineconeVectorStore(index_name="repo-text-embed-index", dimension=768)
                     vector_store.upsert_embeddings(embeddings, document, repo)
                 st.success("🎉 Embeddings saved in Pinecone successfully.")
                 

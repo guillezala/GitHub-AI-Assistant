@@ -122,7 +122,7 @@ def list_issues(output: str) -> List:
         try:
             list = json.loads(text)
         except json.JSONDecodeError:
-            return "Error: Could not list issues. Try again by using just the required parameters."
+            return "Error: Could not list issues. Try again modifying the parameters."
     except Exception as e:
         print(f"Error processing output: {e}")
 
@@ -136,10 +136,7 @@ def list_issues(output: str) -> List:
         number = issue.get("number", "No number")
         body = issue.get("body", "No body")
 
-        if len(body) > 500:
-            body = body[:500] + "..."
-
-        result_lines.append(f"Issue #{number} - {title} ({state}): {body}")
+        result_lines.append(f"Issue #{number} - {title} ({state})")
 
     return "\n".join(result_lines)
 
@@ -162,7 +159,7 @@ def get_file_contents(output: str) -> str:
         else:
             text = ""
     except Exception as e:
-        return f"Error processing output: {e}. Try again by using just the required parameters."
+        return f"Error processing output: {e}. Try again by using just the required parameters or change ref parameter from 'main' to 'master'."
 
     return text
 
@@ -196,8 +193,8 @@ def get_pull_request(output: str) -> str:
     number = pr.get("number", "No number")
     body = pr.get("body", "No body")
 
-    if len(body) > 500:
-        body = body[:500] + "..."
+    if len(body) > 5000:
+        body = body[:5000] + "..."
 
     return f"PR #{number} - {title} ({state}): {url}\n {body}"
 

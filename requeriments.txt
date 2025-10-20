@@ -2,7 +2,7 @@ PyGithub
 tiktoken
 transformers
 streamlit
-sentence_transformers
+sentence-transformers
 pinecone
 google-api-core
 langchain

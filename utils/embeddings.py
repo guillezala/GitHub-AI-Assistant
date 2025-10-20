@@ -9,7 +9,7 @@ from pinecone.grpc import PineconeGRPC as Pinecone
 from sentence_transformers import SentenceTransformer
 
 class Embedder:
-    def __init__(self, model_name="all-MiniLM-L6-v2", device: str = None):
+    def __init__(self, model_name="all-mpnet-base-v2", device: str = None):
         device = device or "cpu"
         self.model = SentenceTransformer(model_name, device=device)
 
@@ -65,16 +65,7 @@ class PineconeVectorStore:
         self.index = pc.Index(index_name)
 
     def upsert_embeddings(self, items: List[Dict], document: str, repo: str) -> None:
-        """
-        items = [
-            {
-                'text': '...',
-                'embedding': [...],
-                'metadata': { opcional }
-            },
-            ...
-        ]
-        """
+    
         vectors = []
         for i, item in enumerate(items):
             vec_id = f"chunk-{uuid.uuid4().hex[:8]}"

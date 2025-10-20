@@ -34,7 +34,6 @@ class GitHubMCPAgent:
                 "run", "--rm", "-i",
                 "-e", f"GITHUB_PERSONAL_ACCESS_TOKEN={self.pat}",
                 "ghcr.io/github/github-mcp-server",
-                "--enable-command-logging", "--log-file", "/tmp/mcp.log",
                 "stdio",
             ]
 
@@ -93,7 +92,13 @@ class GitHubMCPAgent:
                 if props or req:
                     schema_hint = "\n\nInput JSON schema (summary):\n"
                     if props:
-                        schema_hint += "properties: " + ", ".join(f"{k}" for k in props.keys()) + "\n"
+                        schema_hint += "properties: " 
+                        for k, v in props.items():
+                            if "enum" in v:
+                                enum_vals = v["enum"]
+                                schema_hint += f"{k} (enum: {', '.join(map(str, enum_vals))}), "
+                            else:
+                                schema_hint += f"{k} ({v.get('type', 'unknown')}), "
                     if req:
                         schema_hint += "required: " + ", ".join(req) + "\n"
             except Exception:
@@ -128,6 +133,7 @@ class GitHubMCPAgent:
                 - End with "Final Answer:" once you can fully answer the question.
                 - Do NOT add an optional parameter to the tool if not necessary or explicitly mentioned in the input.
                 - Every tool input must have "repo" and "owner" parameters.
+                - If the tool has a "ref" parameter, use "main" unless specified otherwise.
 
                 Begin!
 
@@ -145,12 +151,13 @@ class GitHubMCPAgent:
             agent=agent,
             tools=tools,
             verbose=True,
-            handle_parsing_errors = "Fix the format. Stick to the given prompt. Make sure there is a Thought, Action and Action Input.",
+            handle_parsing_errors = "Fix the format. Stick to the given prompt. " \
+                                    "Make sure there is a Thought, Action and Action Input.",
             max_iterations=max_iterations,
-            return_intermediate_steps=True,
-            early_stopping_method="generate" 
+            return_intermediate_steps=True
 
         )
+        
         return executor
 
     async def close(self):
