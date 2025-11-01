@@ -5,7 +5,7 @@ from langchain_ollama import ChatOllama
 
 class RAGAgent(BaseTool):
     name: str = "RAGAgent"
-    description: str = "Search for relevant information in the repository's README and generate a response based on the query and the found chunks"
+    description: str = "Use this tool to search the vector database for relevant, high-level context from various GitHub repository README files. This is ideal for answering general questions about a project's purpose, architecture, setup, or usage. DO NOT use this tool for queries that require accessing specific, granular data, file contents, or real-time repository status (e.g., retrieving a specific line of code or a list of files)."
     embedder: object = Field(default=None)
     vector_store: object = Field(default=None)
     llm: object = Field(default=None)

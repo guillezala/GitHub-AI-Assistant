@@ -34,9 +34,10 @@ st.session_state.chat_llm = ChatOllama(
             temperature=0.0,
 
             model_kwargs={
-                "num_ctx": 2048,      
+                "num_ctx": 1024,      
                 "num_thread": 4,      
-                "keep_alive": "30s"   
+                "keep_alive": "30s",
+                "num_gpu": 0  
             }
         )
 
@@ -57,14 +58,17 @@ if "github_tool" not in st.session_state:
         "list_pull_requests", "list_releases", "list_issues", "get_file_contents", "get_pull_request", "get_issue", "get_release_by_tag"
     }
     executor = st.session_state.runner.run(
-        gh.build_executor(allowed_tools=allowed_tools, model="qwen2.5:7b-instruct-q4_0", temperature=0.0, max_iterations=5)
+        gh.build_executor(allowed_tools=allowed_tools, 
+                          model="qwen2.5:7b-instruct-q4_0", 
+                          temperature=0.0, max_iterations=5,
+                          )
     )
     st.session_state.gh_client = gh
     st.session_state.github_tool = GitHubExecTool(executor=executor)
 
 # 3) RAG 
 if "rag_tool" not in st.session_state:
-    rag_tool = RAGAgent(vector_store=PineconeVectorStore(index_name="repo-text-embed-index"),
+    rag_tool = RAGAgent(vector_store=PineconeVectorStore(index_name="repo-text-embed-index", dimension=768),
                         embedder=Embedder(),
                         llm=st.session_state.chat_llm)
     st.session_state.rag_tool = rag_tool

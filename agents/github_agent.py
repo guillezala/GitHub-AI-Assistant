@@ -15,6 +15,7 @@ from utils.process_tool_output import process_tool_output
 
 import os
 
+
 class GitHubMCPAgent:
     def __init__(self, server_cmd: str = "docker", pat_env: str = "GITHUB_TOKEN"):
         self.server_cmd = server_cmd
@@ -131,7 +132,7 @@ class GitHubMCPAgent:
 
                 IMPORTANT:
                 - End with "Final Answer:" once you can fully answer the question.
-                - Do NOT add an optional parameter to the tool if not necessary or explicitly mentioned in the input.
+                - Do NOT add an optional parameter as an argument to the tool input if not necessary or explicitly mentioned in the input.
                 - Every tool input must have "repo" and "owner" parameters.
                 - If the tool has a "ref" parameter, use "main" unless specified otherwise.
 
@@ -186,6 +187,7 @@ class MCPTool(BaseTool):
                 )
             try:
                 args = json.loads(stripped)
+                args = {k: v for k, v in args.items() if v is not None}
             except json.JSONDecodeError as e:
                 raise ValueError(f"Invalid JSON for Action Input: {e}")
 
@@ -202,6 +204,7 @@ class MCPTool(BaseTool):
             if stripped.startswith("{") or stripped.startswith("["):
                 try:
                     args = json.loads(stripped)
+                    args = {k: v for k, v in args.items() if v is not None}
                 except json.JSONDecodeError:
                     args = {"query": args}
             else:

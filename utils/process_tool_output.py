@@ -97,6 +97,9 @@ def list_releases(output: str) -> List:
         published_at = release.get("published_at", "No publish date")
         body = release.get("body", "")
 
+        if len(body) > 500:
+            body = body[:500] + " ..."
+
         result_lines.append(f"Release {name} ({tag_name}) published at {published_at}: {url}\n {body}")
 
     return "\n".join(result_lines)
@@ -161,6 +164,9 @@ def get_file_contents(output: str) -> str:
     except Exception as e:
         return f"Error processing output: {e}. Try again by using just the required parameters or change ref parameter from 'main' to 'master'."
 
+    if len(text) > 5000:
+        text = text[:5000] + "..."
+        
     return text
 
 def get_pull_request(output: str) -> str:
