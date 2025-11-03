@@ -137,7 +137,6 @@ def list_issues(output: str) -> List:
         title = issue.get("title", "No title")
         state = issue.get("state", "No state")
         number = issue.get("number", "No number")
-        body = issue.get("body", "No body")
 
         result_lines.append(f"Issue #{number} - {title} ({state})")
 
