@@ -160,11 +160,6 @@ if send_query_button:
         st.warning("⚠️ Please, write a query.")
     else:
         with st.spinner("🔎 Analyzing query..."):
-            """analyzer = init_query_analyzer()
-            
-            analysis = analyzer.analyze_query(user_query)
-            
-            is_relevant = analyzer.is_relevant_query(analysis, min_confidence)"""
             is_relevant = True
         
         if is_relevant:
