@@ -1,45 +1,40 @@
 # 🐙 GitHub AI Assistant
 
-Un asistente de IA basado en **Streamlit** que te permite procesar **README** de repositorios de GitHub y consultar repositorios públicos utilizando **RAG** (Retrieval-Augmented Generation) y un agente de IA.
+A **Streamlit**-based AI assistant that allows you to process GitHub repository **README** files and query public repositories using **RAG** (Retrieval-Augmented Generation) and an AI agent.
 
-El sistema se integra con los siguientes frameworks:
+The system integrates with the following frameworks:
 
-| Framework | Propósito |
-|-----------|-----------|
-| **Ollama** | Inferencia LLM |
-| **Langchain** | Agentes de IA |
-| **GitHub MCP Server** | Datos de repositorio |
-| **Pinecone** | Almacenamiento vectorial |
+| Framework | Purpose |
+|-----------|---------|
+| **Ollama** | LLM Inference |
+| **Langchain** | AI Agents |
+| **GitHub MCP Server** | Repository Data |
+| **Pinecone** | Vector Storage |
 
-## 📋 Requisitos e Instalación
+## 📋 Requirements and Installation
 
-Antes de ejecutar la aplicación, asegúrate de tener lo siguiente configurado:
+Before running the application, make sure you have the following configured:
 
-### 🔧 Ollama y Modelo LLM
+### 🔧 Ollama and LLM Model
 
-Instala y descarga un modelo LLM localmente:
+Install and download an LLM model locally:
 
-- **Instalar Ollama**: https://ollama.com/docs/installation
-- **Descargar el modelo** usado por la app (ejemplo):
-  
-  ```bash
-  # Bash/WSL/macOS:
-  ollama pull qwen2.5:7b-instruct-q4_0
-  ```
+- **Install Ollama**: https://ollama.com/docs/installation
+- **Download the model** used by the app (example):
   
   ```powershell
   # Windows PowerShell:
   ollama pull qwen2.5:7b-instruct-q4_0
   ```
 
-> ⚠️ **Nota**: Asegúrate de que el nombre del modelo coincida con el valor en `app.py` (ej: `qwen2.5:7b-instruct-q4_0`). El modelo puede ser grande y tardar en descargar.
+> ⚠️ **Note**: Make sure the model name matches the value in `app.py` (e.g., `qwen2.5:7b-instruct-q4_0`). The model can be large and take time to download.
 
 ### 🐳 Docker Desktop
 
-Requerido para ejecutar el servidor GitHub MCP:
+Required to run the GitHub MCP server:
 
-- **Descargar**: https://www.docker.com/products/docker-desktop
-- **Ejecutar el servidor GitHub MCP** (requiere un GitHub PAT):
+- **Download**: https://www.docker.com/products/docker-desktop
+- **Run the GitHub MCP server** (requires a GitHub PAT):
   
   ```bash
   # Bash/WSL/Linux/macOS:
@@ -51,15 +46,15 @@ Requerido para ejecutar el servidor GitHub MCP:
   docker run --rm -i -e GITHUB_PERSONAL_ACCESS_TOKEN=$env:GITHUB_TOKEN ghcr.io/github/github-mcp-server --enable-command-logging --log-file /tmp/mcp.log stdio
   ```
 
-> 💡 Si usas `podman` u otro runtime, adapta el comando según sea necesario.
+> 💡 If you use `podman` or another runtime, adapt the command accordingly.
 
 ### 🔑 GitHub Personal Access Token (PAT)
 
-Requerido para que el servidor MCP acceda a los datos del repositorio:
+Required for the MCP server to access repository data:
 
-- **Crear PAT**: https://github.com/settings/tokens
-- **Scopes recomendados**: `repo` (y otros según sea necesario)
-- **Configurar como variable de entorno**:
+- **Create PAT**: https://github.com/settings/tokens
+- **Recommended scopes**: `repo` (and others as needed)
+- **Configure as environment variable**:
   
   ```bash
   # Bash/WSL:
@@ -71,13 +66,13 @@ Requerido para que el servidor MCP acceda a los datos del repositorio:
   $env:GITHUB_TOKEN = "ghp_XXXXXXXXXXXXXXXXXXXX"
   ```
 
-### 📍 Pinecone API Key e Índice
+### 📍 Pinecone API Key and Index
 
-Configura tu índice vectorial en Pinecone:
+Configure your vector index in Pinecone:
 
-- **Crear cuenta**: https://www.pinecone.io/
-- **Crear un índice** con dimensión `384`
-- **Configurar variable de entorno**:
+- **Create account**: https://www.pinecone.io/
+- **Create an index** with dimension `384`
+- **Configure environment variable**:
   
   ```bash
   # Bash/WSL:
@@ -89,11 +84,11 @@ Configura tu índice vectorial en Pinecone:
   $env:PINECONE_API_KEY = "YOUR_PINECONE_API_KEY"
   ```
 
-> 📌 Nombre de índice por defecto: `rag-index` | Dimensión: `384`
+> 📌 Default index name: `rag-index` | Dimension: `384`
 
-### 🐍 Python y Dependencias
+###  Python and Dependencies
 
-Instala las dependencias del proyecto:
+Install project dependencies:
 
 ```bash
 python -m venv .venv
@@ -101,149 +96,149 @@ python -m venv .venv
 pip install -r requirements.txt
 ```
 
-Ejecuta la app:
+Run the app:
 
 ```bash
 streamlit run app.py
 ```
 
-## 🎨 Interfaz Streamlit
+## 🎨 Streamlit Interface
 
-### 📊 Descripción General
+### 📊 Overview
 
-La página principal de la app es un **panel de control de Streamlit** dividido en dos secciones principales:
+The app's main page is a **Streamlit dashboard** divided into two main sections:
 
-| Sección | Descripción |
+| Section | Description |
 |---------|-------------|
-| **Process README** | Obtiene e indexa un README de repositorio en el almacén vectorial (Pinecone) |
-| **Query Repositories** | Escribe una consulta sobre un repositorio y obtén respuestas vía Orchestrator (RAG + Agente GitHub) |
+| **Process README** | Fetches and indexes a repository README into the vector store (Pinecone) |
+| **Query Repositories** | Write a query about a repository and get answers via Orchestrator (RAG + GitHub Agent) |
 
 ---
 
 ### 📝 Process README
 
-**Entradas:**
-- Propietario del repositorio (campo de texto)
-- Nombre del repositorio (campo de texto)
+**Inputs:**
+- Repository owner (text input)
+- Repository name (text input)
 
-**Acciones:**
-- Haz clic en *"Process README"* para obtener el README de GitHub
-- La app dividirá el README en fragmentos, calculará embeddings y los cargará en Pinecone
+**Actions:**
+- Click *"Process README"* to fetch the README from GitHub
+- The app will split the README into chunks, calculate embeddings, and load them into Pinecone
 
-**Feedback en UI:**
-- Mensajes de éxito/advertencia/error mediante Streamlit
-- Spinners que muestran progreso en fragmentación, embedding y carga a Pinecone
+**UI Feedback:**
+- Success/warning/error messages via Streamlit
+- Spinners showing progress in chunking, embedding, and Pinecone upload
 
 ### 🔍 Query Repositories
 
-**Entradas:**
-- Área de texto libre para escribir una pregunta sobre un repositorio
+**Inputs:**
+- Free-form text area to write a question about a repository
 
-**Acciones:**
-- Haz clic en *"Send query"* para ejecutar tu pregunta a través del agente Orchestrator
-- El Orchestrator puede ejecutar la herramienta RAG (búsqueda vectorial) y el agente GitHub (MCP) para obtener y combinar respuestas
+**Actions:**
+- Click *"Send query"* to run your question through the Orchestrator agent
+- The Orchestrator can run the RAG tool (vector search) and the GitHub agent (MCP) to fetch and combine answers
 
-**Salida:**
-- La respuesta final (y cualquier mensaje de error) se muestra bajo *"Answer"*
+**Output:**
+- The final answer (and any error messages) is displayed under *"Answer"*
 
-### ⚙️ Comportamiento Adicional
+### ⚙️ Additional Behavior
 
-- La app intenta conectarse al servidor GitHub MCP al iniciar; los errores de conexión aparecen como advertencias en la UI
-- Utiliza un `AsyncRunner` para ejecutar tareas asincrónicas (conexión MCP, construcción de agentes, embeddings) sin bloquear la interfaz de Streamlit
-- Para depuración, la app registra mensajes mediante el logger de Streamlit (aparecen como mensajes en la UI)
-- El modelo LLM y herramientas de agente permitidas se configuran en `app.py` — cámbilos si es necesario para experimentos
+- The app attempts to connect to the GitHub MCP server on startup; connection errors appear as warnings in the UI
+- Uses an `AsyncRunner` to execute asynchronous tasks (MCP connection, agent building, embeddings) without blocking the Streamlit interface
+- For debugging, the app logs messages via the Streamlit logger (appears as messages in the UI)
+- The default LLM and allowed agent tools are configured in `app.py` — change them if needed for experiments
 
-## 🤖 Agentes y Herramientas
+## 🤖 Agents and Tools
 
-Esta sección describe los tres componentes principales del agente en el sistema (**RAGAgent**, **GitHubAgent** y **Orchestrator**), cómo funcionan, qué entradas/salidas esperan, y guía sobre cuándo usar cada uno.
+This section describes the three main agent components in the system (**RAGAgent**, **GitHubAgent**, and **Orchestrator**), how they work, what inputs/outputs they expect, and guidance on when to use each one.
 
 ### 🧠 RAGAgent
 
-**Propósito:**
-- Proporcionar respuestas de alto nivel y contextuales buscando en la base de datos vectorial (Pinecone) fragmentos relevantes del README y sintetizando resultados con el LLM
+**Purpose:**
+- Provide high-level, contextual answers by searching the vector database (Pinecone) for relevant README chunks and synthesizing results with the LLM
 
-**Cuándo usarlo:**
-- Ideal para preguntas sobre propósito del proyecto, arquitectura, configuración, ejemplos de uso, o cualquier tema donde el contexto derivado del README es suficiente
+**When to use it:**
+- Ideal for questions about project purpose, architecture, configuration, usage examples, or any topic where README-derived context is sufficient
 
-**Flujo de trabajo:**
-- Acepta una consulta de texto libre
-- Incrusta la consulta usando el embedder del proyecto (SentenceTransformer)
-- Realiza una búsqueda de vecinos más cercanos en el almacén vectorial devolviendo los k fragmentos principales
-- Ensambla fragmentos recuperados en un payload de contexto consciente de relevancia y llama al LLM para producir una respuesta concisa y fundamentada en contexto
+**Workflow:**
+- Accepts a free-text query
+- Embeds the query using the project's embedder (SentenceTransformer)
+- Performs a nearest-neighbor search in the vector store returning the top k chunks
+- Assembles retrieved chunks into a relevance-aware context payload and calls the LLM to produce a concise, context-grounded answer
 
-**Entradas / Salidas:**
-- **Entrada**: cadena de consulta simple
-- **Salida**: cadena de respuesta sintetizada (opcionalmente con citas o fragmentos de chunks recuperados)
+**Inputs / Outputs:**
+- **Input**: plain query string
+- **Output**: synthesized answer string (optionally with citations or snippets from retrieved chunks)
 
-**Limitaciones:**
-- ❌ No es apta para responder preguntas que requieren datos de repositorio en tiempo real o a nivel de archivo (contenidos de archivos, líneas específicas, historial git) — usa **GitHubAgent** para esas
+**Limitations:**
+- ❌ Not suitable for answering questions that require real-time or file-level repository data (file contents, specific lines, git history) — use **GitHubAgent** for those
 
 ### 🔗 GitHubAgent (GitHubMCPAgent + MCPTool)
 
-**Propósito:**
-- Proporcionar información granular y actualizada del repositorio interactuando con un servidor GitHub MCP local expuesto vía stdio
+**Purpose:**
+- Provide granular, up-to-date repository information by interacting with a local GitHub MCP server exposed via stdio
 
-**Qué proporciona:**
-- Acceso programático a un conjunto de herramientas expuestas por el servidor:
-  - 📂 Listado de archivos
-  - 📄 Lectura de contenido de archivos
-  - 🔎 Búsqueda en repo
+**What it provides:**
+- Programmatic access to a set of server-exposed tools:
+  - 📂 File listing
+  - 📄 File content reading
+  - 🔎 Repository search
   - 📊 Diffs
   
-  Las herramientas se descubren dinámicamente vía sesión MCP
+  Tools are discovered dynamically via MCP session
 
-**Cómo funciona:**
-- Se conecta a un servidor MCP local (contenedor iniciado con Docker) usando un PAT disponible para el servidor
-- Llama a `list_tools()` para enumerar capacidades MCP disponibles y envuelve cada herramienta como un MCPTool utilizable por agentes
-- Cuando se invoca, un MCPTool formatea entrada de acción similar a JSON, llama a `session.call_tool(tool_name, args)` y analiza la salida de herramienta en una observación utilizable para el agente
+**How it works:**
+- Connects to a local MCP server (container started with Docker) using a PAT available to the server
+- Calls `list_tools()` to enumerate available MCP capabilities and wraps each tool as an MCPTool usable by agents
+- When invoked, an MCPTool formats JSON-like action input, calls `session.call_tool(tool_name, args)` and parses the tool output into an observation usable for the agent
 
-**Entradas / Salidas:**
-- **Entrada**: entrada de acción estructurada similar a JSON (campos específicos de la herramienta) o prompts legibles por humanos delegados por un agente orquestador
-- **Salida**: observación de herramienta sin procesar (string/JSON), post-procesada por utilidades `process_tool_output` para mantener resultados consistentes para el LLM
+**Inputs / Outputs:**
+- **Input**: structured JSON-like action input (tool-specific fields) or human-readable prompts delegated by an orchestrating agent
+- **Output**: raw tool observation (string/JSON), post-processed by `process_tool_output` utilities to keep results consistent for the LLM
 
-**Notas de seguridad y operación:**
-- 🔐 Requiere un `GITHUB_TOKEN` válido proporcionado al contenedor MCP
-- ⏱️ Las llamadas son remotas (contenedor ↔ host) y pueden introducir latencia
-- 💡 Prefiere RAG para búsquedas locales baratas y GitHubAgent para consultas autorizadas a nivel de archivo
-- ⚠️ Las herramientas pueden exponer operaciones sensibles; valida entradas y restringe herramientas permitidas donde sea apropiado
+**Security and operational notes:**
+- 🔐 Requires a valid `GITHUB_TOKEN` provided to the MCP container
+- ⏱️ Calls are remote (container ↔ host) and can introduce latency
+- 💡 Prefer RAG for cheap local lookups and GitHubAgent for authoritative file-level queries
+- ⚠️ Tools can expose sensitive operations; validate inputs and restrict allowed tools where appropriate
 
 ### 🎼 Orchestrator
 
-**Propósito:**
-- Componer herramientas y LLMs en un único agente de estilo **ReAct** que decide cuándo llamar a herramientas RAG o GitHub y cómo combinar resultados en una respuesta final
+**Purpose:**
+- Compose tools and LLMs into a single **ReAct**-style agent that decides when to call RAG or GitHub tools and how to combine results into a final answer
 
-**Responsabilidades principales:**
-- Construir un `AgentExecutor` que registre herramientas disponibles (RAGAgent, MCPTools, GitHubExecTool)
-- Implementar una plantilla de prompt estructurada que impulse el bucle: **Thought** → **Action** → **Action Input** → **Observation**
-- Aplicar límites de iteración y timeouts para evitar invocación descontrolada de herramientas
-- Enrutar resultados de herramientas de vuelta al LLM y producir la respuesta final mostrada al usuario
+**Main responsibilities:**
+- Build an `AgentExecutor` that registers available tools (RAGAgent, MCPTools, GitHubExecTool)
+- Implement a structured prompt template that drives the loop: **Thought** → **Action** → **Action Input** → **Observation**
+- Enforce iteration limits and timeouts to avoid runaway tool invocation
+- Route results from tools back to the LLM and produce the final response shown to the user
 
-**Cómo elige herramientas:**
-- El prompt instruye al LLM a:
-  - ✅ Preferir **RAG** cuando README/contexto es suficiente
-  - ✅ Llamar a herramientas **GitHub** cuando la pregunta requiere contenidos de archivo, líneas específicas, o estado de repositorio activo
+**How it chooses tools:**
+- The prompt instructs the LLM to:
+  - ✅ Prefer **RAG** when README/context is sufficient
+  - ✅ Call **GitHub** tools when the question requires file contents, specific lines, or live repository state
 
-**Integración asincrónica y runtime:**
-- El Orchestrator puede combinar llamadas LLM sincrónicas y llamadas MCP asincrónicas
-- La app usa un `AsyncRunner` con bucle de evento en background para ejecutar operaciones asincrónicas sin bloquear Streamlit
-- La ejecución del agente captura y muestra errores de herramientas; el Orchestrator maneja reintentos, timeouts y fallbacks donde se configure
+**Asynchronous integration and runtime:**
+- The Orchestrator can combine synchronous LLM calls and asynchronous MCP calls
+- The app uses an `AsyncRunner` with background event loop to run asynchronous operations without blocking Streamlit
+- Agent execution captures and surfaces errors from tools; the Orchestrator handles retries, timeouts, and fallbacks where configured
 
-**Ejemplo de flujo:**
+**Example flow:**
 
 ```
-1️⃣ Consulta del usuario llega al Orchestrator
+1️⃣ User query arrives at the Orchestrator
    ↓
-2️⃣ Orchestrator invoca RAGAgent para recuperar contexto relevante del README
+2️⃣ Orchestrator invokes RAGAgent to retrieve relevant README context
    ↓
-3️⃣ LLM analiza contexto y decide que se necesita una verificación a nivel de archivo
-   → Llama a herramienta GitHub MCP (vía GitHubAgent)
+3️⃣ LLM analyzes context and decides a file-level check is needed
+   → Calls GitHub MCP tool (via GitHubAgent)
    ↓
-4️⃣ Herramienta GitHub devuelve contenido de archivo
+4️⃣ GitHub tool returns file content
    ↓
-5️⃣ Orchestrator envía contexto combinado al LLM para respuesta final
+5️⃣ Orchestrator sends combined context to LLM for final answer
 ```
 
-**Orientación:**
-- ⚡ Ajusta las herramientas permitidas y el conteo de iteraciones dependiendo de consultas típicas (menos iteraciones = más rápido, más seguro)
-- 💰 Usa RAGAgent para respuestas contextuales de **bajo costo**
-- ✔️ Usa GitHubAgent cuando la **corrección** y **detalles actualizados** importan
+**Guidance:**
+- ⚡ Adjust allowed tools and iteration count depending on typical queries (fewer iterations = faster, safer)
+- 💰 Use RAGAgent for **low-cost** contextual responses
+- ✔️ Use GitHubAgent when **correctness** and **up-to-date details** matter
